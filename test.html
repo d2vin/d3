@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Overlay - Fixed & Full Screen (Cover)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CRITICAL ADDITION: Reset default browser margins/paddings */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Hide scrollbars for the whole page */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            cursor: none; /* Hide default cursor */
+            background-color: #000; /* Background color (will likely not be seen with cover) */
+            position: relative; /* Make body the positioning context for absolute children */
+        }
+
+        .gif-container {
+            position: absolute; /* Fixed to viewport */
+            top: 0;
+            left: 0;
+            width: 100vw;   /* Always fill viewport width */
+            height: 100vh;  /* Always fill viewport height */
+            overflow: hidden; /* Hide any overflow from nested elements */
+        }
+
+        .full-screen-gif {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* CRITICAL CHANGE FOR "FULL SCREEN": This will fill the container, but may crop the GIF content */
+            object-fit: cover;
+            /* Center the covered GIF within its container */
+            margin: auto;
+        }
+
+        #topGif {
+            z-index: 1;
+            pointer-events: none; /* Allows mouse events to pass through */
+            clip-path: url(#clipJaggedCircle);
+            -webkit-clip-path: url(#clipJaggedCircle);
+            transition: clip-path 0.05s ease-out, opacity 0.2s ease-out;
+            opacity: 0;
+            image-rendering: pixelated;
+        }
+
+        #bottomGif {
+            z-index: 0;
+            image-rendering: pixelated;
+        }
+
+        #clipPathSvg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Styles for the FIXED invisible hitbox button */
+        #fixedHitboxButton {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: transparent;
+            border: 1px solid red; /* Debugging outline */
+            left: 1080px; /* Fixed position relative to the viewport */
+            top: 380px;  /* Fixed position relative to the viewport */
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="gifContainer" class="gif-container">
+        <img id="topGif" src="./color-backround.gif" alt="Top Layer GIF" class="full-screen-gif">
+        <img id="bottomGif" src="./backround-museum.gif" alt="Bottom Layer GIF" class="full-screen-gif">
+    </div>
+
+    <svg id="clipPathSvg" width="0" height="0">
+        <defs>
+            <clipPath id="clipJaggedCircle">
+                <path id="jaggedCirclePath" d="M0,0"></path>
+            </clipPath>
+        </defs>
+    </svg>
+
+    <div id="fixedHitboxButton"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gifContainer = document.getElementById('gifContainer');
+            const topGif = document.getElementById('topGif');
+            const bottomGif = document.getElementById('bottomGif');
+            const jaggedCirclePath = document.getElementById('jaggedCirclePath');
+            const fixedHitboxButton = document.getElementById('fixedHitboxButton');
+
+            const cutoutRadiusPx = 40;
+            const pixelSize = 5;
+
+            function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
+                let pathData = ``;
+                const numPoints = 64;
+                const angleIncrement = (Math.PI * 2) / numPoints;
+                let prevSnX = 0;
+                let prevSnY = 0;
+
+                for (let i = 0; i <= numPoints; i++) {
+                    const angle = i * angleIncrement;
+                    let targetX = cx + radius * Math.cos(angle);
+                    let targetY = cy + radius * Math.sin(angle);
+                    let snappedX = Math.round(targetX / pixelGridSize) * pixelGridSize;
+                    let snappedY = Math.round(targetY / pixelGridSize) * pixelGridSize;
+
+                    if (i === 0) { pathData = `M${snappedX},${snappedY}`; }
+                    else {
+                        const dx = Math.abs(snappedX - prevSnX);
+                        const dy = Math.abs(snappedY - prevSnY);
+                        if (dx >= dy) { pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `; }
+                        else { pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `; }
+                    }
+                    prevSnX = snappedX;
+                    prevSnY = snappedY;
+                }
+                pathData += `Z`;
+                return pathData;
+            }
+
+            function updateClipPath(e) {
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                const gifRect = bottomGif.getBoundingClientRect(); // Get the GIF's actual rendered size/position
+
+                // Calculate center for the jagged circle relative to the GIF's displayed area
+                const relativeX = mouseX - gifRect.left;
+                const relativeY = mouseY - gifRect.top;
+
+                if (mouseX >= gifRect.left && mouseX <= gifRect.right &&
+                    mouseY >= gifRect.top && mouseY <= gifRect.bottom) {
+                    const newPathData = generateJaggedCirclePath(relativeX, relativeY, cutoutRadiusPx, pixelSize);
+                    jaggedCirclePath.setAttribute('d', newPathData);
+                    topGif.style.opacity = 1;
+                } else {
+                    resetClipPath();
+                }
+            }
+
+            function resetClipPath() {
+                jaggedCirclePath.setAttribute('d', generateJaggedCirclePath(0, 0, 0, pixelSize));
+                topGif.style.opacity = 0;
+            }
+
+            gifContainer.addEventListener('mousemove', updateClipPath);
+            gifContainer.addEventListener('mouseleave', resetClipPath);
+            fixedHitboxButton.addEventListener('mousemove', updateClipPath);
+            fixedHitboxButton.addEventListener('mouseleave', resetClipPath);
+
+            fixedHitboxButton.addEventListener('click', () => {
+                console.log('Fixed Hitbox clicked! Changing GIF sources.');
+                topGif.src = './yellowbackground.gif';
+                bottomGif.src = './redplanet1.gif';
+                resetClipPath(); // Hide cutout after changing GIFs
+            });
+
+            resetClipPath();
+            window.addEventListener('resize', resetClipPath); // Important for `object-fit:cover` to recalculate
+
+            const gifs = document.querySelectorAll('.full-screen-gif');
+            gifs.forEach(gif => {
+                gif.onerror = () => {
+                    console.error('Failed to load GIF:', gif.src);
+                    gif.src = `https://placehold.co/1920x1080/000000/FFFFFF?text=GIF+Loading+Failed`;
+                };
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Overlay with Mouse Cutout (Symmetrical Jagged L-Edges)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            cursor: none; /* Hide default cursor */
+        }
+
+        .gif-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .full-screen-gif {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #topGif {
+            z-index: 1;
+            pointer-events: auto;
+
+            /* Referencing the SVG clip-path */
+            clip-path: url(#clipJaggedCircle);
+            -webkit-clip-path: url(#clipJaggedCircle);
+
+            transition: clip-path 0.05s ease-out, opacity 0.2s ease-out;
+            opacity: 0;
+            image-rendering: pixelated; /* Applies to GIF content, making it blocky */
+        }
+
+        #bottomGif {
+            z-index: 0;
+            image-rendering: pixelated; /* Applies to GIF content */
+        }
+
+        #clipPathSvg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%; /* Needed for clip-path to scale correctly */
+            height: 100%; /* Needed for clip-path to scale correctly */
+            pointer-events: none; /* Crucial: make SVG non-interactive */
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="gifContainer" class="gif-container">
+        <img id="topGif" src="./color-backround.gif" alt="Top Layer GIF" class="full-screen-gif">
+        <img id="bottomGif" src="./backround-museum.gif" alt="Bottom Layer GIF" class="full-screen-gif">
+    </div>
+
+    <svg id="clipPathSvg" width="0" height="0"> <defs>
+            <clipPath id="clipJaggedCircle">
+                <path id="jaggedCirclePath" d="M0,0"></path>
+            </clipPath>
+        </defs>
+    </svg>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gifContainer = document.getElementById('gifContainer');
+            const topGif = document.getElementById('topGif');
+            const jaggedCirclePath = document.getElementById('jaggedCirclePath');
+
+            const cutoutRadiusPx = 40; // Desired radius of the jagged circle in pixels
+            const pixelSize = 5;     // The "pixel" size for the grid snapping. Larger value = more jagged.
+
+            // Function to generate a jagged circle SVG path with right-angle edges and improved symmetry
+            function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
+                let pathData = ``;
+                const numPoints = 64; // More points for a smoother overall circle before snapping. Must be divisible by 4 or 8.
+                const angleIncrement = (Math.PI * 2) / numPoints;
+
+                let prevSnX = 0; // Previous snapped X coordinate
+                let prevSnY = 0; // Previous snapped Y coordinate
+
+                for (let i = 0; i <= numPoints; i++) {
+                    const angle = i * angleIncrement;
+                    let targetX = cx + radius * Math.cos(angle);
+                    let targetY = cy + radius * Math.sin(angle);
+
+                    // Snap target point to pixel grid
+                    let snappedX = Math.round(targetX / pixelGridSize) * pixelGridSize;
+                    let snappedY = Math.round(targetY / pixelGridSize) * pixelGridSize;
+
+                    if (i === 0) {
+                        // For the first point, just move to it
+                        pathData = `M${snappedX},${snappedY}`;
+                    } else {
+                        // Create an L-shaped segment from (prevSnX, prevSnY) to (snappedX, snappedY)
+                        // Choose intermediate point to form the right angle for better symmetry
+                        const dx = Math.abs(snappedX - prevSnX);
+                        const dy = Math.abs(snappedY - prevSnY);
+
+                        // If change in X is greater or equal, prioritize horizontal movement first
+                        if (dx >= dy) {
+                            pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
+                        } else { // Else, prioritize vertical movement first
+                            pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `;
+                        }
+                    }
+                    // Update previous snapped coordinates for the next iteration
+                    prevSnX = snappedX;
+                    prevSnY = snappedY;
+                }
+                pathData += `Z`; // Close the path
+                return pathData;
+            }
+
+            // Function to update the SVG path based on mouse position
+            function updateClipPath(e) {
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                const containerRect = gifContainer.getBoundingClientRect();
+
+                // Calculate center for the jagged circle relative to the container
+                const relativeX = mouseX - containerRect.left;
+                const relativeY = mouseY - containerRect.top;
+
+                // Generate and set the new jagged path
+                const newPathData = generateJaggedCirclePath(relativeX, relativeY, cutoutRadiusPx, pixelSize);
+                jaggedCirclePath.setAttribute('d', newPathData);
+
+                topGif.style.opacity = 1; // Make topGif visible
+            }
+
+            // Function to reset the clip-path (hide the cutout)
+            function resetClipPath() {
+                // Generate a path for a tiny/zero-radius circle to hide it
+                // We use (0,0) as a safe point, or you could use a fixed off-screen point.
+                jaggedCirclePath.setAttribute('d', generateJaggedCirclePath(0, 0, 0, pixelSize));
+                topGif.style.opacity = 0; // Hide the topGif
+            }
+
+            // Add event listeners
+            gifContainer.addEventListener('mousemove', updateClipPath);
+            gifContainer.addEventListener('mouseleave', resetClipPath);
+
+            // Set initial state (hidden)
+            resetClipPath();
+
+            // Optional: Handle window resize. Resets the mask, it will re-appear on mousemove.
+            window.addEventListener('resize', resetClipPath);
+
+            // Fallback for GIF loading errors (optional)
+            const gifs = document.querySelectorAll('.full-screen-gif');
+            gifs.forEach(gif => {
+                gif.onerror = () => {
+                    console.error('Failed to load GIF:', gif.src);
+                    gif.src = `https://placehold.co/1920x1080/000000/FFFFFF?text=GIF+Loading+Failed`;
+                };
+            });
+        });
+    </script>
+</body>
+</html>
