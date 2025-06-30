@@ -53,7 +53,7 @@
             clip-path: url(#clipJaggedCircle);
             -webkit-clip-path: url(#clipJaggedCircle);
 
-            transition: clip-path 0.05s ease-out, opacity 0.2s ease-out;
+            transition: opacity 0.2s ease-out; /* Only transition opacity for hover */
             opacity: 0;
             image-rendering: pixelated;
         }
@@ -146,22 +146,43 @@
             const fixedHitboxButtonRed = document.getElementById('fixedHitboxButtonRed');
             const fixedHitboxButtonYellow = document.getElementById('fixedHitboxButtonYellow');
 
-            const cutoutRadiusPx = 40;
+            const hoverCutoutRadiusPx = 40; // Smaller radius for hover effect
+            const clickCutoutRadiusPx = 60; // Larger radius for click cutouts
             const pixelSize = 5;
 
+            // Defines the maximum random shift for the CENTER of the cutout, in pixels.
+            // This is the main control for the *subtlety* of the overall jiggle.
+            const jitterOffsetRange = 2; // e.g., +/- 2 pixels from the original center
+
+            // Controls how often the random offset for the cutout's center is updated.
+            // Higher value = slower, more 'breathing' movement.
+            const jiggleFrameInterval = 10; // Update jiggle every 20 frames
+
             // --- State variable for GIF toggle ---
-            let isAltGifsActive = false; // False means default GIFs are active
+            let currentBottomGif = 'default'; // 'default', 'redplanet', or 'yellowplanet'
+            let permanentCutoutData = []; // Stores {x, y} coordinates of permanent cutouts
+
+            // Stores the current random offset for the entire clipPath
+            // These will be applied to the *center* of each cutout
+            let currentClipPathOffsetX = 0;
+            let currentClipPathOffsetY = 0;
+            let frameCounter = 0; // Counter for frame skipping
+
             const defaultTopGifSrc = './color-backround.gif';
             const defaultBottomGifSrc = './backround-museum.gif';
-            const altTopGifSrc = './yellowbackground.gif';
-            const altBottomGifSrc = './redplanet1.gif';
-            const altBottomGifSrc2 = './yellowplanet1.gif'; // Example alternate bottom GIF
+            const altTopGifSrc = './yellowbackground.gif'; // This is used for both alt states
+            const altBottomGifSrcRed = './redplanet1.gif';
+            const altBottomGifSrcYellow = './yellowplanet1.gif';
             // ------------------------------------------
 
+            let animationFrameId;
+            const numPoints = 64; // Constant for number of points in the jagged circle
+
             // Function to generate a jagged circle SVG path
+            // Now, it only focuses on creating the sharp pixelated circle relative to its *center*.
+            // The jiggle is applied to cx, cy outside this function.
             function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
                 let pathData = ``;
-                const numPoints = 64;
                 const angleIncrement = (Math.PI * 2) / numPoints;
 
                 let prevSnX = 0;
@@ -172,6 +193,7 @@
                     let targetX = cx + radius * Math.cos(angle);
                     let targetY = cy + radius * Math.sin(angle);
 
+                    // Snap to grid for sharp edges
                     let snappedX = Math.round(targetX / pixelGridSize) * pixelGridSize;
                     let snappedY = Math.round(targetY / pixelGridSize) * pixelGridSize;
 
@@ -194,96 +216,163 @@
                 return pathData;
             }
 
-            // Function to update the SVG path based on mouse position
-            function updateClipPath(e) {
-                const mouseX = e.clientX;
-                const mouseY = e.clientY;
-
-                // Get the actual displayed rectangle of the bottom GIF
+            // Function to create a permanent cutout at given coordinates (for clicks)
+            function createPermanentCutout(mouseX, mouseY) {
                 const gifRect = bottomGif.getBoundingClientRect();
-
-                // Calculate center for the jagged circle relative to the GIF's displayed area
                 const relativeX = mouseX - gifRect.left;
                 const relativeY = mouseY - gifRect.top;
 
-                // Only update if mouse is within the visible GIF area
                 if (mouseX >= gifRect.left && mouseX <= gifRect.right &&
                     mouseY >= gifRect.top && mouseY <= gifRect.bottom) {
-
-                    const newPathData = generateJaggedCirclePath(relativeX, relativeY, cutoutRadiusPx, pixelSize);
-                    jaggedCirclePath.setAttribute('d', newPathData);
-                    topGif.style.opacity = 1;
-                } else {
-                    // Hide the cutout if mouse leaves the actual GIF
-                    resetClipPath();
+                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY }); // Store original coordinates
                 }
             }
 
-            // Function to reset the clip-path (hide the cutout)
-            function resetClipPath() {
-                jaggedCirclePath.setAttribute('d', generateJaggedCirclePath(0, 0, 0, pixelSize));
-                topGif.style.opacity = 0;
+            // Function to handle the mousemove (hover) effect
+            let lastMouseX = -1;
+            let lastMouseY = -1;
+            function handleHoverEffect(e) {
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
             }
 
+            // Animation loop for pixelated motion
+            function animateCutouts() {
+                const gifRect = bottomGif.getBoundingClientRect();
+                let combinedPathData = '';
+                let isTopGifVisible = false;
+
+                frameCounter++; // Increment frame counter
+
+                // Update the overall jiggle offset for the clipPath every jiggleFrameInterval frames
+                if (frameCounter % jiggleFrameInterval === 0) {
+                    // Generate random offsets within the defined jitterOffsetRange
+                    currentClipPathOffsetX = (Math.random() * 2 * jitterOffsetRange - jitterOffsetRange);
+                    currentClipPathOffsetY = (Math.random() * 2 * jitterOffsetRange - jitterOffsetRange);
+                }
+
+                // Generate paths for all permanent cutouts, applying the current overall jiggle offset
+                if (currentBottomGif === 'yellowplanet' && permanentCutoutData.length > 0) {
+                    permanentCutoutData.forEach(cutout => {
+                        const jiggledX = cutout.originalX + currentClipPathOffsetX;
+                        const jiggledY = cutout.originalY + currentClipPathOffsetY;
+                        combinedPathData += generateJaggedCirclePath(jiggledX, jiggledY, clickCutoutRadiusPx, pixelSize);
+                    });
+                    isTopGifVisible = true; // Permanent cutouts mean topGif should be visible
+                }
+
+                // Then, add the hover effect cutout if the mouse is over the GIF
+                if (lastMouseX !== -1 && lastMouseY !== -1 &&
+                    lastMouseX >= gifRect.left && lastMouseX <= gifRect.right &&
+                    lastMouseY >= gifRect.top && lastMouseY <= gifRect.bottom) {
+
+                    const relativeX = lastMouseX - gifRect.left;
+                    const relativeY = lastMouseY - gifRect.top;
+
+                    // Apply the same overall jiggle offset to the hover effect
+                    const jiggledHoverX = relativeX + currentClipPathOffsetX;
+                    const jiggledHoverY = relativeY + currentClipPathOffsetY;
+
+                    const hoverPathData = generateJaggedCirclePath(jiggledHoverX, jiggledHoverY, hoverCutoutRadiusPx, pixelSize);
+                    combinedPathData += hoverPathData;
+                    isTopGifVisible = true; // Hover effect also means topGif should be visible
+                }
+
+                jaggedCirclePath.setAttribute('d', combinedPathData);
+                topGif.style.opacity = isTopGifVisible ? 1 : 0; // Set opacity based on whether any cutouts are active
+
+                animationFrameId = requestAnimationFrame(animateCutouts);
+            }
+
+            // Function to reset the clip-path (hide the hover effect)
+            function resetClipPath() {
+                lastMouseX = -1; // Reset mouse position to stop hover effect
+                lastMouseY = -1;
+                // The animation loop will now handle displaying only permanent cutouts
+                // or hiding everything if no permanent cutouts exist.
+            }
+
+
             // Add event listeners for mousemove and mouseleave to the GIF container
-            gifContainer.addEventListener('mousemove', updateClipPath);
+            gifContainer.addEventListener('mousemove', handleHoverEffect);
             gifContainer.addEventListener('mouseleave', resetClipPath);
 
             // Add mousemove listener to the fixedHitboxButtonRed as well
-            fixedHitboxButtonRed.addEventListener('mousemove', updateClipPath);
+            fixedHitboxButtonRed.addEventListener('mousemove', handleHoverEffect);
             // Add mouseleave listener to the fixedHitboxButtonRed
             fixedHitboxButtonRed.addEventListener('mouseleave', resetClipPath);
 
             // Add mousemove listener to the fixedHitboxButtonYellow as well
-            fixedHitboxButtonYellow.addEventListener('mousemove', updateClipPath);
+            fixedHitboxButtonYellow.addEventListener('mousemove', handleHoverEffect);
             // Add mouseleave listener to the fixedHitboxButtonYellow
             fixedHitboxButtonYellow.addEventListener('mouseleave', resetClipPath);
 
 
-            // --- MODIFIED CLICK LISTENER FOR TOGGLE ---
+            // --- MODIFIED CLICK LISTENER FOR RED PLANET ---
             fixedHitboxButtonRed.addEventListener('click', () => {
-                if (isAltGifsActive) {
-                    // Currently showing alt GIFs, switch back to default
+                if (currentBottomGif === 'redplanet') {
+                    // Currently showing red planet, switch back to default
                     console.log('Switching back to default GIFs.');
                     topGif.src = defaultTopGifSrc;
                     bottomGif.src = defaultBottomGifSrc;
+                    currentBottomGif = 'default';
+                    gifContainer.removeEventListener('click', handleGifContainerClick); // Remove click listener if active
                 } else {
-                    // Currently showing default GIFs, switch to alt
-                    console.log('Switching to alternate GIFs.');
+                    // Switch to red planet
+                    console.log('Switching to red planet GIFs.');
                     topGif.src = altTopGifSrc;
-                    bottomGif.src = altBottomGifSrc;
+                    bottomGif.src = altBottomGifSrcRed;
+                    currentBottomGif = 'redplanet';
+                    gifContainer.removeEventListener('click', handleGifContainerClick); // Ensure click listener is off
                 }
-                // Flip the state
-                isAltGifsActive = !isAltGifsActive;
-                // Always reset cutout after GIF change to prevent weird artifacts
-                resetClipPath();
+                // Always reset cutout data after GIF change
+                permanentCutoutData = []; // Clear permanent cutouts
+                resetClipPath(); // Trigger a redraw via animation loop
             });
 
-            // --- MODIFIED CLICK LISTENER FOR TOGGLE ---
+            // --- MODIFIED CLICK LISTENER FOR YELLOW PLANET ---
             fixedHitboxButtonYellow.addEventListener('click', () => {
-                if (isAltGifsActive) {
-                    // Currently showing alt GIFs, switch back to default
+                if (currentBottomGif === 'yellowplanet') {
+                    // Currently showing yellow planet, switch back to default
                     console.log('Switching back to default GIFs.');
                     topGif.src = defaultTopGifSrc;
                     bottomGif.src = defaultBottomGifSrc;
+                    currentBottomGif = 'default';
+                    gifContainer.removeEventListener('click', handleGifContainerClick); // Remove click listener
                 } else {
-                    // Currently showing default GIFs, switch to alt
-                    console.log('Switching to alternate GIFs.');
+                    // Switch to yellow planet
+                    console.log('Switching to yellow planet GIFs. Click on the planet to make cutouts!');
                     topGif.src = altTopGifSrc;
-                    bottomGif.src = altBottomGifSrc2;
+                    bottomGif.src = altBottomGifSrcYellow;
+                    currentBottomGif = 'yellowplanet';
+                    gifContainer.addEventListener('click', handleGifContainerClick); // Add click listener for cutouts
                 }
-                // Flip the state
-                isAltGifsActive = !isAltGifsActive;
-                // Always reset cutout after GIF change to prevent weird artifacts
-                resetClipPath();
+                // Always reset cutout data after GIF change
+                permanentCutoutData = []; // Clear permanent cutouts
+                resetClipPath(); // Trigger a redraw via animation loop
             });
+
+            // --- New function to handle clicks on the GIF container for cutouts ---
+            function handleGifContainerClick(e) {
+                // This listener should only be active when yellowplanet1.gif is showing
+                if (currentBottomGif === 'yellowplanet') {
+                    createPermanentCutout(e.clientX, e.clientY);
+                }
+            }
             // ------------------------------------------
 
-            // Set initial state (hidden cutout)
+            // Set initial state
             resetClipPath();
 
+            // Start the animation loop
+            animateCutouts();
+
             // Optional: Handle window resize. Resets the mask, it will re-appear on mousemove.
-            window.addEventListener('resize', resetClipPath);
+            window.addEventListener('resize', () => {
+                cancelAnimationFrame(animationFrameId); // Stop current loop
+                resetClipPath(); // Clear paths/reset state based on new size
+                animateCutouts(); // Start new loop
+            });
 
             // Fallback for GIF loading errors (optional)
             const gifs = document.querySelectorAll('.full-screen-gif');
