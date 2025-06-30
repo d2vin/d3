@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Federal Spending Pie Chart</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <!-- D3.js CDN -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .chart-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+        }
+        .chart-card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* rounded-2xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-lg */
+            padding: 2rem; /* p-8 */
+            text-align: center;
+            max-width: 90%; /* Responsive width */
+            margin: 1rem; /* m-4 */
+            position: relative; /* For responsiveness of SVG */
+        }
+        .chart-title {
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: 700; /* font-bold */
+            color: #1f2937; /* text-gray-800 */
+            margin-bottom: 1.5rem; /* mb-6 */
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem; /* text-sm */
+            color: #4b5563; /* text-gray-600 */
+        }
+        .legend-color-box {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 0.25rem; /* rounded */
+            margin-right: 0.5rem;
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 0.5rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="font-inter">
+    <div class="chart-container">
+        <div class="chart-card">
+            <h1 class="chart-title">US Federal Spending (FY 2025 Year-to-Date)</h1>
+            <div id="pie-chart-container" class="flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-8">
+                <svg id="pie-chart"></svg>
+                <div id="legend" class="mt-4 md:mt-0 text-left"></div>
+            </div>
+            <div id="tooltip" class="tooltip"></div>
+        </div>
+    </div>
+
+    <script>
+        // Data for the pie chart (percentages for FY 2025 Year-to-Date)
+        const data = [
+            { category: "Social Security", percentage: 21 },
+            { category: "Medicare", percentage: 14 },
+            { category: "Net Interest", percentage: 14 },
+            { category: "Health (Medicaid, ACA, etc.)", percentage: 13 },
+            { category: "National Defense", percentage: 13 },
+            { category: "Income Security", percentage: 11 },
+            { category: "Veterans Benefits & Services", percentage: 5 },
+            { category: "Education, Training, Employment, & Social Services", percentage: 2 },
+            { category: "Transportation", percentage: 2 },
+            { category: "Natural Resources & Environment", percentage: 1 },
+            { category: "Other", percentage: 3 }
+        ];
+
+        // Chart dimensions
+        const width = 450;
+        const height = 450;
+        const radius = Math.min(width, height) / 2;
+
+        // Select the SVG element and set its dimensions
+        const svg = d3.select("#pie-chart")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", `0 0 ${width} ${height}`) // Make it responsive within its container
+            .append("g")
+            .attr("transform", `translate(${width / 2},${height / 2})`); // Center the pie chart
+
+        // Create a color scale
+        const color = d3.scaleOrdinal()
+            .domain(data.map(d => d.category))
+            .range(d3.schemeCategory10); // D3's built-in color scheme
+
+        // Create a pie generator
+        const pie = d3.pie()
+            .sort(null) // Do not sort slices by value
+            .value(d => d.percentage);
+
+        // Create an arc generator for the slices
+        const arc = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius - 10); // Slightly smaller to leave room for text
+
+        // Create an arc generator for the labels (push them slightly outside)
+        const outerArc = d3.arc()
+            .innerRadius(radius * 0.9)
+            .outerRadius(radius * 0.9);
+
+        // Append the slices
+        const g = svg.selectAll(".arc")
+            .data(pie(data))
+            .enter().append("g")
+            .attr("class", "arc");
+
+        g.append("path")
+            .attr("d", arc)
+            .attr("fill", d => color(d.data.category))
+            .attr("stroke", "white") // Add a white border between slices
+            .style("stroke-width", "1px")
+            .each(function(d) { this._current = d; }); // Store initial angles for transitions
+
+        // Add tooltips
+        const tooltip = d3.select("#tooltip");
+
+        g.on("mouseover", function(event, d) {
+            tooltip.style("opacity", 1)
+                .html(`<strong>${d.data.category}:</strong> ${d.data.percentage}%`);
+        })
+        .on("mousemove", function(event) {
+            tooltip.style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 20) + "px");
+        })
+        .on("mouseout", function() {
+            tooltip.style("opacity", 0);
+        });
+
+        // Add percentage labels
+        g.append("text")
+            .attr("transform", d => `translate(${outerArc.centroid(d)})`)
+            .attr("dy", ".35em")
+            .attr("font-size", "12px")
+            .attr("fill", "#000") // Black text
+            .style("text-anchor", d => {
+                const midangle = d.startAngle + (d.endAngle - d.startAngle) / 2;
+                return (midangle < Math.PI ? "start" : "end");
+            })
+            .text(d => `${d.data.percentage}%`); // Only show percentage on slices
+
+        // Generate Legend
+        const legend = d3.select("#legend");
+        const legendData = data.slice().sort((a, b) => b.percentage - a.percentage); // Sort for legend
+
+        legend.selectAll(".legend-item")
+            .data(legendData)
+            .enter()
+            .append("div")
+            .attr("class", "legend-item")
+            .html(d => `
+                <div class="legend-color-box" style="background-color: ${color(d.category)};"></div>
+                <div>${d.category}</div>
+            `);
+
+        // Add a responsive resize listener (optional for complex D3, but good practice)
+        window.addEventListener('resize', function() {
+            // This example uses fixed width/height for the SVG and viewBox
+            // which handles scaling within its container. For more dynamic D3,
+            // you might re-calculate width/height and re-render the chart.
+        });
+
+    </script>
+</body>
+</html>
