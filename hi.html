@@ -146,8 +146,12 @@
             const fixedHitboxButtonRed = document.getElementById('fixedHitboxButtonRed');
             const fixedHitboxButtonYellow = document.getElementById('fixedHitboxButtonYellow');
 
-            const hoverCutoutRadiusPx = 40; // Smaller radius for hover effect
-            const clickCutoutRadiusPx = 60; // Larger radius for click cutouts
+            // Initial and minimum radius for all cutouts
+            let currentCutoutRadius = 40;
+            const minCutoutRadius = 10;
+            const maxCutoutRadius = 100;
+            const radiusStep = 5; // How much the radius changes with each scroll tick
+
             const pixelSize = 5;
 
             // Defines the maximum random shift for the CENTER of the cutout, in pixels.
@@ -224,7 +228,8 @@
 
                 if (mouseX >= gifRect.left && mouseX <= gifRect.right &&
                     mouseY >= gifRect.top && mouseY <= gifRect.bottom) {
-                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY }); // Store original coordinates
+                    // Store original coordinates and the current cutout radius
+                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY, radius: currentCutoutRadius });
                 }
             }
 
@@ -256,7 +261,8 @@
                     permanentCutoutData.forEach(cutout => {
                         const jiggledX = cutout.originalX + currentClipPathOffsetX;
                         const jiggledY = cutout.originalY + currentClipPathOffsetY;
-                        combinedPathData += generateJaggedCirclePath(jiggledX, jiggledY, clickCutoutRadiusPx, pixelSize);
+                        // Use the radius stored with each permanent cutout
+                        combinedPathData += generateJaggedCirclePath(jiggledX, jiggledY, cutout.radius, pixelSize);
                     });
                     isTopGifVisible = true; // Permanent cutouts mean topGif should be visible
                 }
@@ -273,7 +279,8 @@
                     const jiggledHoverX = relativeX + currentClipPathOffsetX;
                     const jiggledHoverY = relativeY + currentClipPathOffsetY;
 
-                    const hoverPathData = generateJaggedCirclePath(jiggledHoverX, jiggledHoverY, hoverCutoutRadiusPx, pixelSize);
+                    // Use currentCutoutRadius for the hover effect
+                    const hoverPathData = generateJaggedCirclePath(jiggledHoverX, jiggledHoverY, currentCutoutRadius, pixelSize);
                     combinedPathData += hoverPathData;
                     isTopGifVisible = true; // Hover effect also means topGif should be visible
                 }
@@ -292,6 +299,20 @@
                 // or hiding everything if no permanent cutouts exist.
             }
 
+            // --- Mouse Wheel Event Listener ---
+            window.addEventListener('wheel', (e) => {
+                // Prevent page scrolling
+                e.preventDefault();
+
+                if (e.deltaY < 0) {
+                    // Scrolling up, increase radius
+                    currentCutoutRadius = Math.min(currentCutoutRadius + radiusStep, maxCutoutRadius);
+                } else {
+                    // Scrolling down, decrease radius
+                    currentCutoutRadius = Math.max(currentCutoutRadius - radiusStep, minCutoutRadius);
+                }
+                console.log('Current Cutout Radius:', currentCutoutRadius);
+            }, { passive: false }); // Use { passive: false } to allow preventDefault
 
             // Add event listeners for mousemove and mouseleave to the GIF container
             gifContainer.addEventListener('mousemove', handleHoverEffect);
