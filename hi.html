@@ -20,6 +20,8 @@
             /* This background color will show if the browser window is larger than the fixed GIF dimensions */
             background-color: #000;
             position: relative; /* Make body the positioning context for absolute children */
+            /* Add transition for smooth tint change */
+            transition: filter 0.5s ease-in-out;
         }
 
         .gif-container {
@@ -145,6 +147,7 @@
             const jaggedCirclePath = document.getElementById('jaggedCirclePath');
             const fixedHitboxButtonRed = document.getElementById('fixedHitboxButtonRed');
             const fixedHitboxButtonYellow = document.getElementById('fixedHitboxButtonYellow');
+            const body = document.body; // Reference to the body element
 
             // Initial and minimum radius for all cutouts
             let currentCutoutRadius = 40;
@@ -177,6 +180,10 @@
             const altTopGifSrc = './yellowbackground.gif'; // This is used for both alt states
             const altBottomGifSrcRed = './redplanet1.gif';
             const altBottomGifSrcYellow = './yellowplanet1.gif';
+
+            // --- Tinting Variables ---
+            let currentHueRotation = 0; // Initial hue rotation in degrees
+            const hueStep = 30; // How much to rotate hue with each right-click
             // ------------------------------------------
 
             let animationFrameId;
@@ -380,6 +387,20 @@
                     createPermanentCutout(e.clientX, e.clientY);
                 }
             }
+
+            // --- Right-click (contextmenu) listener for tint change ---
+            gifContainer.addEventListener('contextmenu', (e) => {
+                // Prevent the default right-click context menu from appearing
+                e.preventDefault();
+
+                // Check if the topGif (the one being clipped) is currently visible due to cutouts
+                // We're checking the opacity to determine if there's an active cutout (either hover or permanent)
+                if (topGif.style.opacity == 1) {
+                    currentHueRotation = (currentHueRotation + hueStep) % 360; // Cycle hue from 0 to 360
+                    body.style.filter = `hue-rotate(${currentHueRotation}deg)`;
+                    console.log('Background Tint Hue:', currentHueRotation);
+                }
+            });
             // ------------------------------------------
 
             // Set initial state
