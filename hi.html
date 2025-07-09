@@ -235,8 +235,18 @@
 
                 if (mouseX >= gifRect.left && mouseX <= gifRect.right &&
                     mouseY >= gifRect.top && mouseY <= gifRect.bottom) {
-                    // Store original coordinates and the current cutout radius
-                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY, radius: currentCutoutRadius });
+
+                    let radiusToUse = currentCutoutRadius; // Default to scroll-controlled radius
+
+                    // If on redplanet, override the radius to the minimum allowed
+                    if (currentBottomGif === 'redplanet') {
+                        radiusToUse = minCutoutRadius;
+                        console.log(`Creating cutout on red planet with fixed radius: ${radiusToUse}px`);
+                    } else if (currentBottomGif === 'yellowplanet') {
+                        console.log(`Creating cutout on yellow planet with scroll-controlled radius: ${radiusToUse}px`);
+                    }
+
+                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY, radius: radiusToUse });
                 }
             }
 
@@ -264,7 +274,7 @@
                 }
 
                 // Generate paths for all permanent cutouts, applying the current overall jiggle offset
-                if (currentBottomGif === 'yellowplanet' && permanentCutoutData.length > 0) {
+                if ((currentBottomGif === 'yellowplanet' || currentBottomGif === 'redplanet') && permanentCutoutData.length > 0) {
                     permanentCutoutData.forEach(cutout => {
                         const jiggledX = cutout.originalX + currentClipPathOffsetX;
                         const jiggledY = cutout.originalY + currentClipPathOffsetY;
@@ -282,12 +292,18 @@
                     const relativeX = lastMouseX - gifRect.left;
                     const relativeY = lastMouseY - gifRect.top;
 
+                    // Determine the radius for the hover effect
+                    let hoverRadius = currentCutoutRadius;
+                    if (currentBottomGif === 'redplanet') {
+                        hoverRadius = minCutoutRadius; // Force 10px radius for hover when red planet is active
+                    }
+
                     // Apply the same overall jiggle offset to the hover effect
                     const jiggledHoverX = relativeX + currentClipPathOffsetX;
                     const jiggledHoverY = relativeY + currentClipPathOffsetY;
 
-                    // Use currentCutoutRadius for the hover effect
-                    const hoverPathData = generateJaggedCirclePath(jiggledHoverX, jiggledHoverY, currentCutoutRadius, pixelSize);
+                    // Use the determined hoverRadius for the hover effect
+                    const hoverPathData = generateJaggedCirclePath(jiggledHoverX, jiggledHoverY, hoverRadius, pixelSize);
                     combinedPathData += hoverPathData;
                     isTopGifVisible = true; // Hover effect also means topGif should be visible
                 }
@@ -347,11 +363,12 @@
                     gifContainer.removeEventListener('click', handleGifContainerClick); // Remove click listener if active
                 } else {
                     // Switch to red planet
-                    console.log('Switching to red planet GIFs.');
+                    console.log('Switching to red planet GIFs. Click on the planet to make cutouts with a 10px minimum radius!');
                     topGif.src = altTopGifSrc;
                     bottomGif.src = altBottomGifSrcRed;
                     currentBottomGif = 'redplanet';
-                    gifContainer.removeEventListener('click', handleGifContainerClick); // Ensure click listener is off
+                    // Add click listener for cutouts only when redplanet is active
+                    gifContainer.addEventListener('click', handleGifContainerClick);
                 }
                 // Always reset cutout data after GIF change
                 permanentCutoutData = []; // Clear permanent cutouts
@@ -382,9 +399,24 @@
 
             // --- New function to handle clicks on the GIF container for cutouts ---
             function handleGifContainerClick(e) {
-                // This listener should only be active when yellowplanet1.gif is showing
-                if (currentBottomGif === 'yellowplanet') {
-                    createPermanentCutout(e.clientX, e.clientY);
+                const gifRect = bottomGif.getBoundingClientRect();
+                const relativeX = e.clientX - gifRect.left;
+                const relativeY = e.clientY - gifRect.top;
+
+                if (e.clientX >= gifRect.left && e.clientX <= gifRect.right &&
+                    e.clientY >= gifRect.top && e.clientY <= gifRect.bottom) {
+
+                    let radiusToUse = currentCutoutRadius; // Default to scroll-controlled radius
+
+                    // If on redplanet, override the radius to the minimum allowed
+                    if (currentBottomGif === 'redplanet') {
+                        radiusToUse = minCutoutRadius;
+                        console.log(`Creating cutout on red planet with fixed radius: ${radiusToUse}px`);
+                    } else if (currentBottomGif === 'yellowplanet') {
+                        console.log(`Creating cutout on yellow planet with scroll-controlled radius: ${radiusToUse}px`);
+                    }
+
+                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY, radius: radiusToUse });
                 }
             }
 
