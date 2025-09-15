@@ -149,6 +149,25 @@
             const fixedHitboxButtonYellow = document.getElementById('fixedHitboxButtonYellow');
             const body = document.body; // Reference to the body element
 
+            // Create an Audio object for the sound file
+            const welcomeSound = new Audio('./room-welcome-sound.mp3');
+            welcomeSound.preload = 'auto';
+
+            // Function to play the sound on the first user interaction
+            function playWelcomeSound() {
+                welcomeSound.play().catch(error => {
+                    console.error("Audio playback failed:", error);
+                    // This will likely be due to the autoplay policy
+                    // The error confirms that the interaction is necessary
+                });
+            }
+
+            // Listen for any click or touchend on the entire document body
+            // The { once: true } option ensures this function only runs once
+            document.body.addEventListener('click', playWelcomeSound, { once: true });
+            document.body.addEventListener('touchend', playWelcomeSound, { once: true });
+
+
             // Initial and minimum radius for all cutouts
             let currentCutoutRadius = 40; // This is the original size
             const originalCutoutRadius = 40; // Define a constant for the original size
