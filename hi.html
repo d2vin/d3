@@ -16,7 +16,6 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            cursor: none; /* Hide default cursor */
             /* This background color will show if the browser window is larger than the fixed GIF dimensions */
             background-color: #000;
             position: relative; /* Make body the positioning context for absolute children */
@@ -28,6 +27,7 @@
             position: absolute; /* Pin it to a fixed position relative to the body */
             top: 0;             /* Top-left corner of the viewport */
             left: 0;            /* Top-left corner of the viewport */
+            cursor: none; /* Make cursor invisible on the GIF container */
 
             /* IMPORTANT: Set fixed dimensions to your GIF's actual intrinsic resolution.
                Assuming your GIFs are 1920x1080. ADJUST THESE VALUES if different. */
@@ -123,7 +123,13 @@
     </style>
 </head>
 <body class="bg-black">
-    <div id="gifContainer" class="gif-container">
+    <div id="introOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 transition-opacity duration-1000">
+        <p id="introText" class="text-white text-3xl font-bold cursor-pointer opacity-100 transition-opacity duration-500">
+            Press Enter
+        </p>
+    </div>
+
+    <div id="gifContainer" class="gif-container opacity-0 transition-opacity duration-1000">
         <img id="topGif" src="./color-backround.gif" alt="Top Layer GIF" class="full-screen-gif">
         <img id="bottomGif" src="./backround-museum.gif" alt="Bottom Layer GIF" class="full-screen-gif">
     </div>
@@ -141,32 +147,64 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- NEW VARIABLES ---
+            const introOverlay = document.getElementById('introOverlay');
+            const introText = document.getElementById('introText');
             const gifContainer = document.getElementById('gifContainer');
+
+            // --- EXISTING VARIABLES ---
             const topGif = document.getElementById('topGif');
             const bottomGif = document.getElementById('bottomGif');
             const jaggedCirclePath = document.getElementById('jaggedCirclePath');
             const fixedHitboxButtonRed = document.getElementById('fixedHitboxButtonRed');
             const fixedHitboxButtonYellow = document.getElementById('fixedHitboxButtonYellow');
-            const body = document.body; // Reference to the body element
+            const body = document.body;
 
             // Create an Audio object for the sound file
             const welcomeSound = new Audio('./room-welcome-sound.mp3');
             welcomeSound.preload = 'auto';
 
-            // Function to play the sound on the first user interaction
-            function playWelcomeSound() {
+            let hasStarted = false;
+
+            // Function to start the experience
+            function startExperience() {
+                if (hasStarted) return;
+                hasStarted = true;
+
+                // Play the welcome sound
                 welcomeSound.play().catch(error => {
                     console.error("Audio playback failed:", error);
-                    // This will likely be due to the autoplay policy
-                    // The error confirms that the interaction is necessary
                 });
+
+                // Fade out the overlay
+                introOverlay.style.opacity = '0';
+                // Fade in the GIF container
+                gifContainer.style.opacity = '1';
+
+                // Remove the keydown listener to prevent re-triggering
+                document.removeEventListener('keydown', handleKeydown);
+
+                // Wait for the overlay to finish fading out before removing it
+                setTimeout(() => {
+                    introOverlay.remove();
+                    // Re-enable the mouse events and other interactions
+                    // No need to change cursor here, as it's handled by the CSS on .gif-container
+                    gifContainer.style.pointerEvents = 'auto';
+                }, 1000); // The duration of the transition
             }
 
-            // Listen for any click or touchend on the entire document body
-            // The { once: true } option ensures this function only runs once
-            document.body.addEventListener('click', playWelcomeSound, { once: true });
-            document.body.addEventListener('touchend', playWelcomeSound, { once: true });
+            // Handle the "Enter" key press
+            function handleKeydown(e) {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    startExperience();
+                }
+            }
 
+            // Add the 'keydown' event listener to the document
+            document.addEventListener('keydown', handleKeydown);
+
+            // Make the "Press Enter" text clickable as an alternative to the key press
+            introText.addEventListener('click', startExperience);
 
             // Initial and minimum radius for all cutouts
             let currentCutoutRadius = 40; // This is the original size
@@ -451,7 +489,7 @@
 
             // Start the animation loop
             animateCutouts();
-
+    
             // Optional: Handle window resize. Resets the mask, it will re-appear on mousemove.
             window.addEventListener('resize', () => {
                 cancelAnimationFrame(animationFrameId); // Stop current loop
