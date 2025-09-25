@@ -76,6 +76,29 @@
         }
 
         /* Styles for the FIXED invisible hitbox button */
+        #fixedHitboxPlanet2 {
+            position: absolute; /* Positioned relative to the body/viewport */
+            width: 80px;   /* 2 * 40px radius = diameter */
+            height: 80px;  /* 2 * 40px radius = diameter */
+            border-radius: 50%; /* Make it circular */
+            background-color: transparent; /* Makes it invisible inside */
+
+            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
+            /* border: 1px solid red; */
+
+            /* Positioning the center of the hitbox at X=1080px, Y=380px */
+            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
+               these coordinates are also effectively relative to the GIF's top-left. */
+            left: 660px; /* Adjusted to 800px as per your last input */
+            top: 135px;  /* Adjusted to 280px as per your last input */
+            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
+
+            z-index: 4; /* Ensure it's above everything else */
+            pointer-events: auto; /* Crucial: allow this element to receive clicks */
+            cursor: pointer; /* Give a visual cue that it's clickable */
+        }
+
+        /* Styles for the FIXED invisible hitbox button */
         #fixedHitboxButtonRed {
             position: absolute; /* Positioned relative to the body/viewport */
             width: 80px;   /* 2 * 40px radius = diameter */
@@ -120,11 +143,34 @@
             pointer-events: auto; /* Crucial: allow this element to receive clicks */
             cursor: pointer; /* Give a visual cue that it's clickable */
         }
+
+        /* Styles for the FIXED invisible hitbox button */
+        #fixedHitboxPlanet4 {
+            position: absolute; /* Positioned relative to the body/viewport */
+            width: 180px;   /* 2 * 40px radius = diameter */
+            height: 180px;  /* 2 * 40px radius = diameter */
+            border-radius: 50%; /* Make it circular */
+            background-color: transparent; /* Makes it invisible inside */
+
+            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
+            /* border: 1px solid red; */
+
+            /* Positioning the center of the hitbox at X=1080px, Y=380px */
+            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
+               these coordinates are also effectively relative to the GIF's top-left. */
+            left: 240px; /* Adjusted to 800px as per your last input */
+            top: 200px;  /* Adjusted to 280px as per your last input */
+            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
+
+            z-index: 4; /* Ensure it's above everything else */
+            pointer-events: auto; /* Crucial: allow this element to receive clicks */
+            cursor: pointer; /* Give a visual cue that it's clickable */
+        }
     </style>
 </head>
 <body class="bg-black">
     <div id="introOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 transition-opacity duration-1000">
-        <p id="introText" class="text-white text-3xl font-bold cursor-pointer opacity-100 transition-opacity duration-500">
+        <p id="introText" class="text-white text-3xl font-bold cursor-pointer opacity-100 transition-opacity duration-500" style="font-family: 'Courier New', monospace; color: yellow;">
             Press Enter
         </p>
     </div>
@@ -144,6 +190,8 @@
 
     <div id="fixedHitboxButtonRed"></div>
     <div id="fixedHitboxButtonYellow"></div>
+    <div id="fixedHitboxPlanet2"></div>
+    <div id="fixedHitboxPlanet4"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
