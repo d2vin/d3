@@ -99,7 +99,7 @@
         }
 
         /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxButtonYellow {
+        #fixedHitboxPlanet3 {
             position: absolute; /* Positioned relative to the body/viewport */
             width: 60px;   /* 2 * 40px radius = diameter */
             height: 60px;  /* 2 * 40px radius = diameter */
@@ -114,29 +114,6 @@
                these coordinates are also effectively relative to the GIF's top-left. */
             left: 470px; /* Adjusted to 800px as per your last input */
             top: 130px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
-        }
-
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxButtonRed {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 80px;   /* 2 * 40px radius = diameter */
-            height: 80px;  /* 2 * 40px radius = diameter */
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
-
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
-            left: 660px; /* Adjusted to 800px as per your last input */
-            top: 270px;  /* Adjusted to 280px as per your last input */
             transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
 
             z-index: 4; /* Ensure it's above everything else */
@@ -193,8 +170,8 @@
         /* Styles for the FIXED invisible hitbox button */
         #fixedHitboxPlanet6 {
             position: absolute; /* Positioned relative to the body/viewport */
-            width: 60px;   /* 2 * 40px radius = diameter */
-            height: 60px;  /* 2 * 40px radius = diameter */
+            width: 80px;   /* 2 * 40px radius = diameter */
+            height: 80px;  /* 2 * 40px radius = diameter */
             border-radius: 50%; /* Make it circular */
             background-color: transparent; /* Makes it invisible inside */
 
@@ -204,8 +181,8 @@
             /* Positioning the center of the hitbox at X=1080px, Y=380px */
             /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
                these coordinates are also effectively relative to the GIF's top-left. */
-            left: 650px; /* Adjusted to 800px as per your last input */
-            top: 280px;  /* Adjusted to 280px as per your last input */
+            left: 660px; /* Adjusted to 800px as per your last input */
+            top: 270px;  /* Adjusted to 280px as per your last input */
             transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
 
             z-index: 4; /* Ensure it's above everything else */
@@ -280,9 +257,8 @@
         </defs>
     </svg>
 
-    <div id="fixedHitboxButtonRed"></div>
-    <div id="fixedHitboxButtonYellow"></div>
     <div id="fixedHitboxPlanet2"></div>
+    <div id="fixedHitboxPlanet3"></div>
     <div id="fixedHitboxPlanet4"></div>
     <div id="fixedHitboxPlanet5"></div>
     <div id="fixedHitboxPlanet6"></div>
@@ -300,8 +276,8 @@
             const topGif = document.getElementById('topGif');
             const bottomGif = document.getElementById('bottomGif');
             const jaggedCirclePath = document.getElementById('jaggedCirclePath');
-            const fixedHitboxButtonRed = document.getElementById('fixedHitboxButtonRed');
-            const fixedHitboxButtonYellow = document.getElementById('fixedHitboxButtonYellow');
+            const fixedHitboxPlanet6 = document.getElementById('fixedHitboxPlanet6');
+            const fixedHitboxPlanet3 = document.getElementById('fixedHitboxPlanet3');
             const body = document.body;
 
             // Create an Audio object for the sound file
@@ -528,19 +504,19 @@
             gifContainer.addEventListener('mousemove', handleHoverEffect);
             gifContainer.addEventListener('mouseleave', resetClipPath);
 
-            // Add mousemove listener to the fixedHitboxButtonRed as well
-            fixedHitboxButtonRed.addEventListener('mousemove', handleHoverEffect);
-            // Add mouseleave listener to the fixedHitboxButtonRed
-            fixedHitboxButtonRed.addEventListener('mouseleave', resetClipPath);
+            // Add mousemove listener to the fixedHitboxPlanet6 as well
+            fixedHitboxPlanet6.addEventListener('mousemove', handleHoverEffect);
+            // Add mouseleave listener to the fixedHitboxPlanet6
+            fixedHitboxPlanet6.addEventListener('mouseleave', resetClipPath);
 
-            // Add mousemove listener to the fixedHitboxButtonYellow as well
-            fixedHitboxButtonYellow.addEventListener('mousemove', handleHoverEffect);
-            // Add mouseleave listener to the fixedHitboxButtonYellow
-            fixedHitboxButtonYellow.addEventListener('mouseleave', resetClipPath);
+            // Add mousemove listener to the fixedHitboxPlanet3 as well
+            fixedHitboxPlanet3.addEventListener('mousemove', handleHoverEffect);
+            // Add mouseleave listener to the fixedHitboxPlanet3
+            fixedHitboxPlanet3.addEventListener('mouseleave', resetClipPath);
 
 
             // --- MODIFIED CLICK LISTENER FOR RED PLANET ---
-            fixedHitboxButtonRed.addEventListener('click', () => {
+            fixedHitboxPlanet6.addEventListener('click', () => {
                 if (currentBottomGif === 'redplanet') {
                     // Currently showing red planet, switch back to default
                     console.log('Switching back to default GIFs.');
@@ -565,7 +541,7 @@
             });
 
             // --- MODIFIED CLICK LISTENER FOR YELLOW PLANET ---
-            fixedHitboxButtonYellow.addEventListener('click', () => {
+            fixedHitboxPlanet3.addEventListener('click', () => {
                 if (currentBottomGif === 'yellowplanet') {
                     // Currently showing yellow planet, switch back to default
                     console.log('Switching back to default GIFs.');
