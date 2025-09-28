@@ -276,15 +276,63 @@
             const topGif = document.getElementById('topGif');
             const bottomGif = document.getElementById('bottomGif');
             const jaggedCirclePath = document.getElementById('jaggedCirclePath');
-            const fixedHitboxPlanet6 = document.getElementById('fixedHitboxPlanet6');
-            const fixedHitboxPlanet3 = document.getElementById('fixedHitboxPlanet3');
             const body = document.body;
+            
+            // --- NEW: Select all hitboxes ---
+            const hitboxes = document.querySelectorAll('[id^="fixedHitboxPlanet"]');
 
             // Create an Audio object for the sound file
             const welcomeSound = new Audio('./room-welcome-sound.mp3');
             welcomeSound.preload = 'auto';
 
             let hasStarted = false;
+
+            // --- NEW AUDIO MANAGEMENT ---
+            // A mapping of hitbox IDs to their audio objects
+            const planetSounds = {
+                'fixedHitboxPlanet2': new Audio('./planet-2.mp3'),
+                'fixedHitboxPlanet3': new Audio('./planet-3.mp3'),
+                'fixedHitboxPlanet4': new Audio('./planet-4.mp3'),
+                'fixedHitboxPlanet5': new Audio('./planet-5.mp3'),
+                'fixedHitboxPlanet6': new Audio('./planet-6.mp3'),
+                'fixedHitboxPlanet7': new Audio('./planet-7.mp3'),
+                'fixedHitboxPlanet8': new Audio('./planet-8.mp3'),
+            };
+
+            // A map to track the playback state for each sound
+            const isPlaying = {};
+            Object.keys(planetSounds).forEach(id => {
+                // Preload all sounds and set initial state to false
+                planetSounds[id].preload = 'auto';
+                isPlaying[id] = false;
+            });
+
+            // Function to handle sound playback on hover
+            function handleSoundHover(e) {
+                const hitboxId = e.target.id;
+                const sound = planetSounds[hitboxId];
+
+                // Only play if it's not currently playing
+                if (sound && !isPlaying[hitboxId]) {
+                    sound.currentTime = 0; // Rewind the sound to the beginning
+                    sound.play().catch(error => {
+                        console.error(`Audio playback for ${hitboxId} failed:`, error);
+                    });
+                    isPlaying[hitboxId] = true; // Set state to playing
+                }
+            }
+
+            // Function to reset the sound state when the mouse leaves
+            function handleSoundLeave(e) {
+                const hitboxId = e.target.id;
+                const sound = planetSounds[hitboxId];
+
+                // Reset the state so the sound can play again
+                if (sound) {
+                    isPlaying[hitboxId] = false;
+                }
+            }
+            // --- END NEW AUDIO MANAGEMENT ---
 
             // Function to start the experience
             function startExperience() {
@@ -409,8 +457,19 @@
             let lastMouseX = -1;
             let lastMouseY = -1;
             function handleHoverEffect(e) {
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
+                // Determine the correct position relative to the GIF container
+                const gifRect = gifContainer.getBoundingClientRect();
+                const relativeX = e.clientX - gifRect.left;
+                const relativeY = e.clientY - gifRect.top;
+
+                // Check if the mouse is inside the GIF container boundaries
+                if (relativeX >= 0 && relativeX <= gifRect.width &&
+                    relativeY >= 0 && relativeY <= gifRect.height) {
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                } else {
+                    resetClipPath();
+                }
             }
 
             // Animation loop for pixelated motion
@@ -440,10 +499,7 @@
                 }
 
                 // Then, add the hover effect cutout if the mouse is over the GIF
-                if (lastMouseX !== -1 && lastMouseY !== -1 &&
-                    lastMouseX >= gifRect.left && lastMouseX <= gifRect.right &&
-                    lastMouseY >= gifRect.top && lastMouseY <= gifRect.bottom) {
-
+                if (lastMouseX !== -1 && lastMouseY !== -1) {
                     const relativeX = lastMouseX - gifRect.left;
                     const relativeY = lastMouseY - gifRect.top;
 
@@ -503,20 +559,20 @@
             // Add event listeners for mousemove and mouseleave to the GIF container
             gifContainer.addEventListener('mousemove', handleHoverEffect);
             gifContainer.addEventListener('mouseleave', resetClipPath);
-
-            // Add mousemove listener to the fixedHitboxPlanet6 as well
-            fixedHitboxPlanet6.addEventListener('mousemove', handleHoverEffect);
-            // Add mouseleave listener to the fixedHitboxPlanet6
-            fixedHitboxPlanet6.addEventListener('mouseleave', resetClipPath);
-
-            // Add mousemove listener to the fixedHitboxPlanet3 as well
-            fixedHitboxPlanet3.addEventListener('mousemove', handleHoverEffect);
-            // Add mouseleave listener to the fixedHitboxPlanet3
-            fixedHitboxPlanet3.addEventListener('mouseleave', resetClipPath);
+            
+            // --- NEW: Loop through all hitboxes and add the same event listeners ---
+            hitboxes.forEach(hitbox => {
+                hitbox.addEventListener('mousemove', handleHoverEffect);
+                hitbox.addEventListener('mouseleave', resetClipPath);
+                // --- NEW: Add event listeners for sound playback
+                hitbox.addEventListener('mouseenter', handleSoundHover);
+                hitbox.addEventListener('mouseleave', handleSoundLeave);
+                // --- END NEW
+            });
 
 
             // --- MODIFIED CLICK LISTENER FOR RED PLANET ---
-            fixedHitboxPlanet6.addEventListener('click', () => {
+            document.getElementById('fixedHitboxPlanet6').addEventListener('click', () => {
                 if (currentBottomGif === 'redplanet') {
                     // Currently showing red planet, switch back to default
                     console.log('Switching back to default GIFs.');
@@ -541,7 +597,7 @@
             });
 
             // --- MODIFIED CLICK LISTENER FOR YELLOW PLANET ---
-            fixedHitboxPlanet3.addEventListener('click', () => {
+            document.getElementById('fixedHitboxPlanet3').addEventListener('click', () => {
                 if (currentBottomGif === 'yellowplanet') {
                     // Currently showing yellow planet, switch back to default
                     console.log('Switching back to default GIFs.');
@@ -582,7 +638,7 @@
                     } else if (currentBottomGif === 'yellowplanet') {
                         console.log(`Creating cutout on yellow planet with scroll-controlled radius: ${radiusToUse}px`);
                     } else if (currentBottomGif === 'default') {
-                         radiusToUse = originalCutoutRadius; // Force original size for permanent cutouts on default GIF
+                        radiusToUse = originalCutoutRadius; // Force original size for permanent cutouts on default GIF
                     }
 
                     permanentCutoutData.push({ originalX: relativeX, originalY: relativeY, radius: radiusToUse });
@@ -609,7 +665,7 @@
 
             // Start the animation loop
             animateCutouts();
-    
+            
             // Optional: Handle window resize. Resets the mask, it will re-appear on mousemove.
             window.addEventListener('resize', () => {
                 cancelAnimationFrame(animationFrameId); // Stop current loop
