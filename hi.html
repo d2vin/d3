@@ -306,19 +306,32 @@
                 planetSounds[id].preload = 'auto';
                 isPlaying[id] = false;
             });
-
-            // Function to handle sound playback on hover
+            
+            // --- MODIFIED handleSoundHover function ---
+            // It now checks the current GIF sources before playing the sound.
             function handleSoundHover(e) {
-                const hitboxId = e.target.id;
-                const sound = planetSounds[hitboxId];
+                // Define the correct GIF file names to check against
+                const expectedTopGif = 'color-backround.gif';
+                const expectedBottomGif = 'backround-museum.gif';
 
-                // Only play if it's not currently playing
-                if (sound && !isPlaying[hitboxId]) {
-                    sound.currentTime = 0; // Rewind the sound to the beginning
-                    sound.play().catch(error => {
-                        console.error(`Audio playback for ${hitboxId} failed:`, error);
-                    });
-                    isPlaying[hitboxId] = true; // Set state to playing
+                // Get the current GIF sources from the `src` attribute
+                const currentTopGif = topGif.src.split('/').pop();
+                const currentBottomGif = bottomGif.src.split('/').pop();
+                
+                // Only proceed if both GIFs match the default pair
+                if (currentTopGif === expectedTopGif && currentBottomGif === expectedBottomGif) {
+                    const hitboxId = e.target.id;
+                    const sound = planetSounds[hitboxId];
+
+                    if (sound && !isPlaying[hitboxId]) {
+                        sound.currentTime = 0;
+                        sound.play().catch(error => {
+                            console.error(`Audio playback for ${hitboxId} failed:`, error);
+                        });
+                        isPlaying[hitboxId] = true;
+                    }
+                } else {
+                    console.log('Sound is disabled on this background.');
                 }
             }
 
@@ -327,12 +340,11 @@
                 const hitboxId = e.target.id;
                 const sound = planetSounds[hitboxId];
 
-                // Reset the state so the sound can play again
                 if (sound) {
                     isPlaying[hitboxId] = false;
                 }
             }
-            // --- END NEW AUDIO MANAGEMENT ---
+            // --- END MODIFIED AUDIO MANAGEMENT ---
 
             // Function to start the experience
             function startExperience() {
