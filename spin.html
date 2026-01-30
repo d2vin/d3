@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surreal Scroll World</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            background-color: #000;
+            font-family: "MS Sans Serif", "Tahoma", sans-serif;
+            overflow-x: hidden;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            outline: none;
+        }
+
+        /* The "Ghost" Scroll Element */
+        #scroll-path {
+            height: 500vh; /* 5 times the screen height */
+            position: relative;
+            pointer-events: none; /* Let clicks pass through to canvas */
+        }
+
+        /* Retro Modal Styling */
+        #modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 100;
+            padding: 2px;
+        }
+
+        .modal-header {
+            background: linear-gradient(90deg, #000080, #1084d0);
+            color: white;
+            padding: 3px 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        button {
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 5px 15px;
+            cursor: pointer;
+        }
+
+        button:active {
+            border-color: #808080 #ffffff #ffffff #808080;
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <canvas id="three-canvas"></canvas>
+    <div id="scroll-path"></div>
+
+    <div id="modal">
+        <div class="modal-header">
+            <span>Alert.exe</span>
+            <button onclick="closeModal()">X</button>
+        </div>
+        <div class="modal-body">
+            <p>YOU HAVE CLICKED THE BUILDING.</p>
+            <p>Welcome to the digital void.</p>
+            <button onclick="closeModal()">OK</button>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+          }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: document.querySelector('#three-canvas'),
+            antialias: false // Kept off for that jagged lo-fi look
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.position.z = 5;
+
+        // --- THE WORLD GROUP ---
+        const worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+
+        // --- BUILDING & ROAD (The Surreal Center) ---
+        const loader = new THREE.TextureLoader();
+        
+        // Add a simple Box (The Building)
+        // Note: Replace the URL with a real image of a building face
+        const buildingMat = new THREE.MeshBasicMaterial({ color: 0x884444 }); 
+        const building = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), buildingMat);
+        worldGroup.add(building);
+
+        // Add a Flat Circle (The Road)
+        const roadGeo = new THREE.RingGeometry(2.5, 4, 32);
+        const roadMat = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
+        const road = new THREE.Mesh(roadGeo, roadMat);
+        road.rotation.x = Math.PI / 2;
+        worldGroup.add(road);
+
+        // --- STARFIELD ---
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 3000;
+        const positions = new Float32Array(starCount * 3);
+        for(let i=0; i<starCount*3; i++) {
+            positions[i] = (Math.random() - 0.5) * 25;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        let baseRotation = 0;
+        let scrollSpeed = 0;
+
+        // --- SCROLL INTERACTION ---
+        // 1. Initialize a variable for the auto-pilot
+let autoRotation = 0;
+
+window.addEventListener('scroll', () => {
+    const scrollPercent = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    
+    // The Building stays locked to the scroll position
+    worldGroup.rotation.y = scrollPercent * Math.PI * 4; 
+
+    // We don't set stars.rotation here; we do it in the animate loop
+    // so it can combine with the auto-rotation smoothly.
+});
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    // 2. Increment the auto-pilot (the constant drift)
+    autoRotation += 0.001; 
+
+    // 3. Get the current scroll percentage
+    const scrollPercent = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+
+    // 4. COMBINE THEM: 
+    // stars.rotation = (Constant Drift) + (Direct Scroll Control)
+    stars.rotation.y = autoRotation + (scrollPercent * Math.PI * 2);
+
+    renderer.render(scene, camera);
+}
+
+        // --- CLICKING (RAYCASTER) ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(worldGroup.children);
+
+            if (intersects.length > 0) {
+                document.getElementById('modal').style.display = 'block';
+            }
+        });
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+        // Global function for the button
+        window.closeModal = function() {
+            document.getElementById('modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
