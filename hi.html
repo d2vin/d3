@@ -6,34 +6,29 @@
     <title>GIF Overlay - Fixed Size, Fixed Position, No Bars (Final)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* CRITICAL ADDITION: Reset default browser margins/paddings */
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
-            overflow: hidden; /* Hide scrollbars for the whole page */
+            overflow: hidden;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            /* This background color will show if the browser window is larger than the fixed GIF dimensions */
             background-color: #000;
-            position: relative; /* Make body the positioning context for absolute children */
-            /* Add transition for smooth tint change */
+            position: relative;
             transition: filter 0.5s ease-in-out;
         }
 
-        .gif-container {
-            position: absolute; /* Pin it to a fixed position relative to the body */
+        /* ── Main scene container ── */
+        .scene-container {
+            position: absolute;
             top: 0;
-            left: 0;            /* Top-left corner of the viewport */
-            cursor: none; /* Make cursor invisible on the GIF container */
-
-            /* IMPORTANT: Set fixed dimensions to your GIF's actual intrinsic resolution.
-               Assuming your GIFs are 1920x1080. ADJUST THESE VALUES if different. */
-            width: 1137px; /* Example GIF width */
-            height: 796px; /* Example GIF height */
-            overflow: hidden; /* Ensures any GIF content exceeding these dimensions is clipped */
+            left: 0;
+            cursor: none;
+            width: 1137px;
+            height: 796px;
+            overflow: hidden;
         }
 
         .full-screen-gif {
@@ -42,211 +37,124 @@
             left: 0;
             width: 100%;
             height: 100%;
-
-            /* CRITICAL: `object-fit: cover;` ensures the GIF always fills its 1920x1080 container,
-               cropping if aspect ratios differ, thus preventing bars. */
             object-fit: cover;
         }
 
-        #topGif {
+        /* ── Color overlay layer (top, clip-pathed) ── */
+        #colorOverlayGif {
             z-index: 1;
-            pointer-events: none; /* Allows mouse events to pass through */
-
-            /* Referencing the SVG clip-path */
+            pointer-events: none;
             clip-path: url(#clipJaggedCircle);
             -webkit-clip-path: url(#clipJaggedCircle);
-
-            transition: opacity 0.2s ease-out; /* Only transition opacity for hover */
+            transition: opacity 0.2s ease-out;
             opacity: 0;
             image-rendering: pixelated;
         }
 
-        #bottomGif {
+        /* ── Background scene layer (bottom) ── */
+        #backgroundSceneGif {
             z-index: 0;
             image-rendering: pixelated;
         }
 
+        /* ── SVG clip-path definition element ── */
         #clipPathSvg {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%; /* Needed for clip-path to scale correctly within gif-container */
-            height: 100%; /* Needed for clip-path to scale correctly within gif-container */
-            pointer-events: none; /* Crucial: make SVG non-interactive */
-            z-index: 2; /* SVG is above GIFs for clipping */
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
         }
 
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet2 {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 80px;   /* 2 * 40px radius = diameter */
-            height: 80px;  /* 2 * 40px radius = diameter */
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
+        /* ── Planet hitbox base styles ── */
+        .planet-hitbox {
+            position: absolute;
+            border-radius: 50%;
+            background-color: transparent;
+            z-index: 4;
+            pointer-events: auto;
+            cursor: pointer;
+        }
 
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
+        #hitboxPlanet2 {
+            width: 80px;
+            height: 80px;
             left: 660px;
-            top: 135px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
+            top: 135px;
+            transform: translate(-50%, -50%);
         }
 
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet3 {
-            position: absolute; /* Positioned relative to the body/viewport */
+        #hitboxPlanet3 {
             width: 60px;
             height: 60px;
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
-
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
             left: 470px;
             top: 130px;
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
+            transform: translate(-50%, -50%);
         }
 
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet4 {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 180px;   /* 2 * 40px radius = diameter */
-            height: 180px;  /* 2 * 40px radius = diameter */
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
-
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
-            left: 240px; /* Adjusted to 800px as per your last input */
-            top: 200px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
-        }
-
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet5 {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 60px;   /* 2 * 40px radius = diameter */
-            height: 60px;  /* 2 * 40px radius = diameter */
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
-
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
-            left: 480px; /* Adjusted to 800px as per your last input */
-            top: 280px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
-        }
-
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet6 {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 80px;   /* 2 * 40px radius = diameter */
-            height: 80px;  /* 2 * 40px radius = diameter */
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
-
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
-            left: 660px; /* Adjusted to 800px as per your last input */
-            top: 270px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
-        }
-
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet7 {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 60px;
-            height: 60px;  /* 2 * 40px radius = diameter */
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
-
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
-
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
-            left: 820px;
-            top: 240px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
-        }
-
-        /* Styles for the FIXED invisible hitbox button */
-        #fixedHitboxPlanet8 {
-            position: absolute; /* Positioned relative to the body/viewport */
-            width: 180px;   /* 2 * 40px radius = diameter */
+        #hitboxPlanet4 {
+            width: 180px;
             height: 180px;
-            border-radius: 50%; /* Make it circular */
-            background-color: transparent; /* Makes it invisible inside */
+            left: 240px;
+            top: 200px;
+            transform: translate(-50%, -50%);
+        }
 
-            /* RED OUTLINE FOR DEBUGGING / VISIBILITY */
-            /* border: 1px solid red; */
+        #hitboxPlanet5 {
+            width: 60px;
+            height: 60px;
+            left: 480px;
+            top: 280px;
+            transform: translate(-50%, -50%);
+        }
 
-            /* Positioning the center of the hitbox at X=1080px, Y=380px */
-            /* These coordinates are relative to the VIEPORT. Since the GIF is also fixed to 0,0,
-               these coordinates are also effectively relative to the GIF's top-left. */
-            left: 1020px; /* Adjusted to 800px as per your last input */
-            top: 200px;  /* Adjusted to 280px as per your last input */
-            transform: translate(-50%, -50%); /* Centers the div on the specified left/top coordinates */
-            z-index: 4; /* Ensure it's above everything else */
-            pointer-events: auto; /* Crucial: allow this element to receive clicks */
-            cursor: pointer; /* Give a visual cue that it's clickable */
+        #hitboxPlanet6 {
+            width: 80px;
+            height: 80px;
+            left: 660px;
+            top: 270px;
+            transform: translate(-50%, -50%);
+        }
+
+        #hitboxPlanet7 {
+            width: 60px;
+            height: 60px;
+            left: 820px;
+            top: 240px;
+            transform: translate(-50%, -50%);
+        }
+
+        #hitboxPlanet8 {
+            width: 180px;
+            height: 180px;
+            left: 1020px;
+            top: 200px;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
-<body class="bg-black">
-    <div id="introOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 transition-opacity duration-1000">
-        <img id="introGif" src="./LoadingScreen.gif">
+<body class="bg-[#1E1E1E]">
+
+    <!-- ── Step 1: "Turn on your sound" prompt overlay ── -->
+    <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50">
+        <p class="text-white text-2xl">Please turn on your sound and press "Enter" to start</p>
     </div>
 
-    <div id="gifContainer" class="gif-container opacity-0 transition-opacity duration-1000">
-        <img id="topGif" src="./color-backround.gif" alt="Top Layer GIF" class="full-screen-gif">
-        <img id="bottomGif" src="./backround-museum.gif" alt="Bottom Layer GIF" class="full-screen-gif">
+    <!-- ── Step 2: Loading / intro animation overlay ── -->
+    <div id="loadingScreenOverlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center z-50 opacity-0 transition-opacity duration-1000" style="background:#000;">
+        <canvas id="starfieldCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+        <img id="loadingScreenGif" src="./LoadingScreen.gif" style="position:relative;z-index:1;">
     </div>
 
+    <!-- ── Step 3: Main scene (hidden until loading screen fades out) ── -->
+    <div id="sceneContainer" class="scene-container opacity-0 transition-opacity duration-1000">
+        <img id="colorOverlayGif"    src="./color-backround.gif"   alt="Color Overlay GIF"    class="full-screen-gif">
+        <img id="backgroundSceneGif" src="./backround-museum.gif"  alt="Background Scene GIF" class="full-screen-gif">
+    </div>
+
+    <!-- ── SVG clip-path definition ── -->
     <svg id="clipPathSvg" width="0" height="0">
         <defs>
             <clipPath id="clipJaggedCircle">
@@ -255,201 +163,183 @@
         </defs>
     </svg>
 
-    <div id="fixedHitboxPlanet2"></div>
-    <div id="fixedHitboxPlanet3"></div>
-    <div id="fixedHitboxPlanet4"></div>
-    <div id="fixedHitboxPlanet5"></div>
-    <div id="fixedHitboxPlanet6"></div>
-    <div id="fixedHitboxPlanet7"></div>
-    <div id="fixedHitboxPlanet8"></div>
+    <!-- ── Planet hitboxes ── -->
+    <div id="hitboxPlanet2" class="planet-hitbox"></div>
+    <div id="hitboxPlanet3" class="planet-hitbox"></div>
+    <div id="hitboxPlanet4" class="planet-hitbox"></div>
+    <div id="hitboxPlanet5" class="planet-hitbox"></div>
+    <div id="hitboxPlanet6" class="planet-hitbox"></div>
+    <div id="hitboxPlanet7" class="planet-hitbox"></div>
+    <div id="hitboxPlanet8" class="planet-hitbox"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- NEW VARIABLES ---
-            const introOverlay = document.getElementById('introOverlay');
-            const introGif = document.getElementById('introGif');
-            const gifContainer = document.getElementById('gifContainer');
 
-            // --- EXISTING VARIABLES ---
-            const topGif = document.getElementById('topGif');
-            const bottomGif = document.getElementById('bottomGif');
+            // ── Overlay / screen elements ──
+            const soundPromptOverlay  = document.getElementById('soundPromptOverlay');
+            const loadingScreenOverlay = document.getElementById('loadingScreenOverlay');
+            const loadingScreenGif    = document.getElementById('loadingScreenGif');
+            const sceneContainer      = document.getElementById('sceneContainer');
+
+            // ── Scene GIF layers ──
+            const colorOverlayGif    = document.getElementById('colorOverlayGif');
+            const backgroundSceneGif = document.getElementById('backgroundSceneGif');
+
+            // ── Clip-path path element ──
             const jaggedCirclePath = document.getElementById('jaggedCirclePath');
             const body = document.body;
-            
-            // --- NEW: Select all hitboxes ---
-            const hitboxes = document.querySelectorAll('[id^="fixedHitboxPlanet"]');
 
-            // Create an Audio object for the sound file
-            const welcomeSound = new Audio('./room-welcome-sound.mp3');
-            welcomeSound.preload = 'auto';
+            // ── All planet hitboxes ──
+            const planetHitboxes = document.querySelectorAll('.planet-hitbox');
+
+            // ── Startup audio ──
+            const soundPromptAudio = new Audio('./room-welcome-sound.mp3');
+            soundPromptAudio.preload = 'auto';
+
+            const loadingScreenLoopAudio = new Audio('./room-welcome-sound.mp3');
+            loadingScreenLoopAudio.preload = 'auto';
+            loadingScreenLoopAudio.loop = true;
+
+            const loadingCompleteAudio = new Audio('./room-welcome-sound1.mp3');
+            loadingCompleteAudio.preload = 'auto';
 
             let hasStarted = false;
 
-            // --- NEW AUDIO MANAGEMENT ---
-            // A mapping of hitbox IDs to their audio objects
-            const planetSounds = {
-                'fixedHitboxPlanet2': new Audio('./planet-2.mp3'),
-                'fixedHitboxPlanet3': new Audio('./planet-3.mp3'),
-                'fixedHitboxPlanet4': new Audio('./planet-4.mp3'),
-                'fixedHitboxPlanet5': new Audio('./planet-5.mp3'),
-                'fixedHitboxPlanet6': new Audio('./planet-6.mp3'),
-                'fixedHitboxPlanet7': new Audio('./planet-7.mp3'),
-                'fixedHitboxPlanet8': new Audio('./planet-8.mp3'),
+            // ── Per-planet hover audio ──
+            const planetHoverSounds = {
+                'hitboxPlanet2': new Audio('./planet-2.mp3'),
+                'hitboxPlanet3': new Audio('./planet-3.mp3'),
+                'hitboxPlanet4': new Audio('./planet-4.mp3'),
+                'hitboxPlanet5': new Audio('./planet-5.mp3'),
+                'hitboxPlanet6': new Audio('./planet-6.mp3'),
+                'hitboxPlanet7': new Audio('./planet-7.mp3'),
+                'hitboxPlanet8': new Audio('./planet-8.mp3'),
             };
 
-            // A map to track the playback state for each sound
-            const isPlaying = {};
-            Object.keys(planetSounds).forEach(id => {
-                // Preload all sounds and set initial state to false
-                planetSounds[id].preload = 'auto';
-                isPlaying[id] = false;
+            // Track whether each planet's sound is currently playing
+            const isPlanetSoundPlaying = {};
+            Object.keys(planetHoverSounds).forEach(id => {
+                planetHoverSounds[id].preload = 'auto';
+                isPlanetSoundPlaying[id] = false;
             });
-            
-            // --- MODIFIED handleSoundHover function ---
-            // It now checks the current GIF sources before playing the sound.
-            function handleSoundHover(e) {
-                // Define the correct GIF file names to check against
-                const expectedTopGif = 'color-backround.gif';
-                const expectedBottomGif = 'backround-museum.gif';
 
-                // Get the current GIF sources from the `src` attribute
-                const currentTopGif = topGif.src.split('/').pop();
-                const currentBottomGif = bottomGif.src.split('/').pop();
-                
-                // Only proceed if both GIFs match the default pair
-                if (currentTopGif === expectedTopGif && currentBottomGif === expectedBottomGif) {
+            // Play a planet's hover sound only when the default scene is active
+            function handlePlanetHoverEnter(e) {
+                const defaultColorOverlay  = 'color-backround.gif';
+                const defaultBackgroundScene = 'backround-museum.gif';
+
+                const activeColorOverlay    = colorOverlayGif.src.split('/').pop();
+                const activeBackgroundScene = backgroundSceneGif.src.split('/').pop();
+
+                if (activeColorOverlay === defaultColorOverlay && activeBackgroundScene === defaultBackgroundScene) {
                     const hitboxId = e.target.id;
-                    const sound = planetSounds[hitboxId];
+                    const sound = planetHoverSounds[hitboxId];
 
-                    if (sound && !isPlaying[hitboxId]) {
+                    if (sound && !isPlanetSoundPlaying[hitboxId]) {
                         sound.currentTime = 0;
-                        sound.play().catch(error => {
-                            console.error(`Audio playback for ${hitboxId} failed:`, error);
-                        });
-                        isPlaying[hitboxId] = true;
+                        sound.play().catch(err => console.error(`Planet sound failed (${hitboxId}):`, err));
+                        isPlanetSoundPlaying[hitboxId] = true;
                     }
-                } else {
-                    console.log('Sound is disabled on this background.');
                 }
             }
 
-            // Function to reset the sound state when the mouse leaves
-            function handleSoundLeave(e) {
+            function handlePlanetHoverLeave(e) {
                 const hitboxId = e.target.id;
-                const sound = planetSounds[hitboxId];
-
-                if (sound) {
-                    isPlaying[hitboxId] = false;
+                if (planetHoverSounds[hitboxId]) {
+                    isPlanetSoundPlaying[hitboxId] = false;
                 }
             }
-            // --- END MODIFIED AUDIO MANAGEMENT ---
 
-            // Function to start the experience
-            function startExperience() {
+            // ── Step 1 → Step 2: Dismiss sound prompt, show loading screen ──
+            function showLoadingScreen() {
                 if (hasStarted) return;
                 hasStarted = true;
 
-                // Play the welcome sound
-                welcomeSound.play().catch(error => {
-                    console.error("Audio playback failed:", error);
-                });
+                soundPromptAudio.play().catch(err => console.error('Sound prompt audio failed:', err));
 
-                // Fade out the overlay
-                introOverlay.style.opacity = '0';
-                // Fade in the GIF container
-                gifContainer.style.opacity = '1';
+                soundPromptOverlay.style.opacity = '0';
+                setTimeout(() => soundPromptOverlay.remove(), 1000);
 
-                // Remove the keydown listener to prevent re-triggering
-                document.removeEventListener('keydown', handleKeydown);
-
-                // Wait for the overlay to finish fading out before removing it
-                setTimeout(() => {
-                    introOverlay.remove();
-                    // Re-enable the mouse events and other interactions
-                    // No need to change cursor here, as it's handled by the CSS on .gif-container
-                    gifContainer.style.pointerEvents = 'auto';
-                }, 1000); // The duration of the transition
+                loadingScreenOverlay.style.opacity = '1';
+                loadingScreenLoopAudio.play().catch(err => console.error('Loading screen loop audio failed:', err));
             }
 
-            // Handle the "Enter" key press
+            // ── Step 2 → Step 3: Dismiss loading screen, reveal scene ──
+            function showMainScene() {
+                loadingCompleteAudio.play().catch(err => console.error('Loading complete audio failed:', err));
+                loadingScreenLoopAudio.pause();
+                loadingScreenLoopAudio.currentTime = 0;
+
+                loadingScreenOverlay.style.opacity = '0';
+                sceneContainer.style.opacity = '1';
+
+                document.removeEventListener('keydown', handleKeydown);
+
+                setTimeout(() => {
+                    loadingScreenOverlay.remove();
+                    sceneContainer.style.pointerEvents = 'auto';
+                }, 1000);
+            }
+
             function handleKeydown(e) {
                 if (e.key === 'Enter' || e.keyCode === 13) {
-                    startExperience();
+                    showLoadingScreen();
                 }
             }
 
-            // Add the 'keydown' event listener to the document
             document.addEventListener('keydown', handleKeydown);
+            loadingScreenGif.addEventListener('click', showMainScene);
 
-            // Make the "Press Enter" text clickable as an alternative to the key press
-            introGif.addEventListener('click', startExperience);
+            // ────────────────────────────────────────────────
+            // ── Clip-path / cutout logic ──
+            // ────────────────────────────────────────────────
 
-            // Initial and minimum radius for all cutouts
-            let currentCutoutRadius = 40; // This is the original size
-            const originalCutoutRadius = 40; // Define a constant for the original size
-            const minCutoutRadius = 10;
-            const maxCutoutRadius = 100;
-            const radiusStep = 5; // How much the radius changes with each scroll tick
+            let currentCutoutRadius   = 40;
+            const originalCutoutRadius = 40;
+            const minCutoutRadius      = 10;
+            const maxCutoutRadius      = 100;
+            const radiusStep           = 5;
 
-            const pixelSize = 5;
+            const pixelSize         = 5;
+            const jitterOffsetRange = 2;
+            const jiggleFrameInterval = 10;
 
-            // Defines the maximum random shift for the CENTER of the cutout, in pixels.
-            // This is the main control for the *subtlety* of the overall jiggle.
-            const jitterOffsetRange = 2; // e.g., +/- 2 pixels from the original center
+            // Tracks which planet scene is active: 'default' | 'redPlanet' | 'yellowPlanet'
+            let activePlanetScene  = 'default';
+            let permanentCutouts   = []; // { originalX, originalY, radius }
 
-            // Controls how often the random offset for the cutout's center is updated.
-            // Higher value = slower, more 'breathing' movement.
-            const jiggleFrameInterval = 10; // Update jiggle every 20 frames
+            let clipPathOffsetX = 0;
+            let clipPathOffsetY = 0;
+            let frameCounter    = 0;
 
-            // --- State variable for GIF toggle ---
-            let currentBottomGif = 'default'; // 'default', 'redplanet', or 'yellowplanet'
-            let permanentCutoutData = []; // Stores {x, y} coordinates of permanent cutouts
+            const defaultColorOverlaySrc    = './color-backround.gif';
+            const defaultBackgroundSceneSrc = './backround-museum.gif';
+            const altColorOverlaySrc        = './yellowbackground.gif';
+            const redPlanetSceneSrc         = './redplanet1.gif';
+            const yellowPlanetSceneSrc      = './yellowplanet1.gif';
 
-            // Stores the current random offset for the entire clipPath
-            // These will be applied to the *center* of each cutout
-            let currentClipPathOffsetX = 0;
-            let currentClipPathOffsetY = 0;
-            let frameCounter = 0; // Counter for frame skipping
-
-            const defaultTopGifSrc = './color-backround.gif';
-            const defaultBottomGifSrc = './backround-museum.gif';
-            const altTopGifSrc = './yellowbackground.gif'; // This is used for both alt states
-            const altBottomGifSrcRed = './redplanet1.gif';
-            const altBottomGifSrcYellow = './yellowplanet1.gif';
-
-            // --- Tinting Variables ---
-            let currentHueRotation = 0; // Initial hue rotation in degrees
-            const hueStep = 30; // How much to rotate hue with each right-click
-            // ------------------------------------------
+            let currentHueRotation = 0;
+            const hueStep          = 30;
 
             let animationFrameId;
-            const numPoints = 64; // Constant for number of points in the jagged circle
+            const numPoints = 64;
 
-            // Function to generate a jagged circle SVG path
-            // Now, it only focuses on creating the sharp pixelated circle relative to its *center*.
-            // The jiggle is applied to cx, cy outside this function.
             function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
-                let pathData = ``;
+                let pathData = '';
                 const angleIncrement = (Math.PI * 2) / numPoints;
-
                 let prevSnX = 0;
                 let prevSnY = 0;
 
                 for (let i = 0; i <= numPoints; i++) {
                     const angle = i * angleIncrement;
-                    let targetX = cx + radius * Math.cos(angle);
-                    let targetY = cy + radius * Math.sin(angle);
-
-                    // Snap to grid for sharp edges
-                    let snappedX = Math.round(targetX / pixelGridSize) * pixelGridSize;
-                    let snappedY = Math.round(targetY / pixelGridSize) * pixelGridSize;
+                    const snappedX = Math.round((cx + radius * Math.cos(angle)) / pixelGridSize) * pixelGridSize;
+                    const snappedY = Math.round((cy + radius * Math.sin(angle)) / pixelGridSize) * pixelGridSize;
 
                     if (i === 0) {
                         pathData = `M${snappedX},${snappedY}`;
                     } else {
                         const dx = Math.abs(snappedX - prevSnX);
                         const dy = Math.abs(snappedY - prevSnY);
-
                         if (dx >= dy) {
                             pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
                         } else {
@@ -459,22 +349,18 @@
                     prevSnX = snappedX;
                     prevSnY = snappedY;
                 }
-                pathData += `Z`;
-                return pathData;
+                return pathData + 'Z';
             }
 
-            // Function to handle the mousemove (hover) effect
             let lastMouseX = -1;
             let lastMouseY = -1;
-            function handleHoverEffect(e) {
-                // Determine the correct position relative to the GIF container
-                const gifRect = gifContainer.getBoundingClientRect();
-                const relativeX = e.clientX - gifRect.left;
-                const relativeY = e.clientY - gifRect.top;
 
-                // Check if the mouse is inside the GIF container boundaries
-                if (relativeX >= 0 && relativeX <= gifRect.width &&
-                    relativeY >= 0 && relativeY <= gifRect.height) {
+            function handleHoverEffect(e) {
+                const sceneRect = sceneContainer.getBoundingClientRect();
+                const relX = e.clientX - sceneRect.left;
+                const relY = e.clientY - sceneRect.top;
+
+                if (relX >= 0 && relX <= sceneRect.width && relY >= 0 && relY <= sceneRect.height) {
                     lastMouseX = e.clientX;
                     lastMouseY = e.clientY;
                 } else {
@@ -482,213 +368,238 @@
                 }
             }
 
-            // Animation loop for pixelated motion
             function animateCutouts() {
-                const gifRect = bottomGif.getBoundingClientRect();
+                const sceneRect = backgroundSceneGif.getBoundingClientRect();
                 let combinedPathData = '';
-                let isTopGifVisible = false;
+                let isColorOverlayVisible = false;
 
-                frameCounter++; // Increment frame counter
-
-                // Update the overall jiggle offset for the clipPath every jiggleFrameInterval frames
+                frameCounter++;
                 if (frameCounter % jiggleFrameInterval === 0) {
-                    // Generate random offsets within the defined jitterOffsetRange
-                    currentClipPathOffsetX = (Math.random() * 2 * jitterOffsetRange - jitterOffsetRange);
-                    currentClipPathOffsetY = (Math.random() * 2 * jitterOffsetRange - jitterOffsetRange);
+                    clipPathOffsetX = Math.random() * 2 * jitterOffsetRange - jitterOffsetRange;
+                    clipPathOffsetY = Math.random() * 2 * jitterOffsetRange - jitterOffsetRange;
                 }
 
-                // Generate paths for all permanent cutouts, applying the current overall jiggle offset
-                if ((currentBottomGif === 'yellowplanet' || currentBottomGif === 'redplanet' || currentBottomGif === 'default') && permanentCutoutData.length > 0) {
-                    permanentCutoutData.forEach(cutout => {
-                        const jiggledX = cutout.originalX + currentClipPathOffsetX;
-                        const jiggledY = cutout.originalY + currentClipPathOffsetY;
-                        // Use the radius stored with each permanent cutout
-                        combinedPathData += generateJaggedCirclePath(jiggledX, jiggledY, cutout.radius, pixelSize);
+                // Render permanent cutouts
+                if (permanentCutouts.length > 0) {
+                    permanentCutouts.forEach(cutout => {
+                        combinedPathData += generateJaggedCirclePath(
+                            cutout.originalX + clipPathOffsetX,
+                            cutout.originalY + clipPathOffsetY,
+                            cutout.radius,
+                            pixelSize
+                        );
                     });
-                    isTopGifVisible = true; // Permanent cutouts mean topGif should be visible
+                    isColorOverlayVisible = true;
                 }
 
-                // Then, add the hover effect cutout if the mouse is over the GIF
+                // Render hover cutout
                 if (lastMouseX !== -1 && lastMouseY !== -1) {
-                    const relativeX = lastMouseX - gifRect.left;
-                    const relativeY = lastMouseY - gifRect.top;
+                    const relX = lastMouseX - sceneRect.left;
+                    const relY = lastMouseY - sceneRect.top;
 
-                    // Determine the radius for the hover effect
                     let hoverRadius = currentCutoutRadius;
-                    if (currentBottomGif === 'redplanet') {
-                        hoverRadius = minCutoutRadius; // Force 10px radius for hover when red planet is active
-                    } else if (currentBottomGif === 'default') {
-                        hoverRadius = originalCutoutRadius; // Force original size for hover when default GIF is active
-                    }
+                    if (activePlanetScene === 'redPlanet')    hoverRadius = minCutoutRadius;
+                    else if (activePlanetScene === 'default') hoverRadius = originalCutoutRadius;
 
-
-                    // Apply the same overall jiggle offset to the hover effect
-                    const jiggledHoverX = relativeX + currentClipPathOffsetX;
-                    const jiggledHoverY = relativeY + currentClipPathOffsetY;
-
-                    // Use the determined hoverRadius for the hover effect
-                    const hoverPathData = generateJaggedCirclePath(jiggledHoverX, jiggledHoverY, hoverRadius, pixelSize);
-                    combinedPathData += hoverPathData;
-                    isTopGifVisible = true; // Hover effect also means topGif should be visible
+                    combinedPathData += generateJaggedCirclePath(
+                        relX + clipPathOffsetX,
+                        relY + clipPathOffsetY,
+                        hoverRadius,
+                        pixelSize
+                    );
+                    isColorOverlayVisible = true;
                 }
 
                 jaggedCirclePath.setAttribute('d', combinedPathData);
-                topGif.style.opacity = isTopGifVisible ? 1 : 0; // Set opacity based on whether any cutouts are active
+                colorOverlayGif.style.opacity = isColorOverlayVisible ? 1 : 0;
 
                 animationFrameId = requestAnimationFrame(animateCutouts);
             }
 
-            // Function to reset the clip-path (hide the hover effect)
             function resetClipPath() {
-                lastMouseX = -1; // Reset mouse position to stop hover effect
+                lastMouseX = -1;
                 lastMouseY = -1;
-                // The animation loop will now handle displaying only permanent cutouts
-                // or hiding everything if no permanent cutouts exist.
             }
 
-            // --- Mouse Wheel Event Listener ---
+            // ── Scroll: resize cutout (yellow planet only) ──
             window.addEventListener('wheel', (e) => {
-                // Prevent page scrolling
                 e.preventDefault();
-
-                // ONLY allow cutout size to change if on the yellow planet
-                if (currentBottomGif === 'yellowplanet') {
-                    if (e.deltaY < 0) {
-                        // Scrolling up, increase radius
-                        currentCutoutRadius = Math.min(currentCutoutRadius + radiusStep, maxCutoutRadius);
-                    } else {
-                        // Scrolling down, decrease radius
-                        currentCutoutRadius = Math.max(currentCutoutRadius - radiusStep, minCutoutRadius);
-                    }
-                    console.log('Current Cutout Radius (Yellow Planet):', currentCutoutRadius);
-                } else {
-                    console.log('Cutout size change is only active on the yellow planet.');
+                if (activePlanetScene === 'yellowPlanet') {
+                    currentCutoutRadius = e.deltaY < 0
+                        ? Math.min(currentCutoutRadius + radiusStep, maxCutoutRadius)
+                        : Math.max(currentCutoutRadius - radiusStep, minCutoutRadius);
                 }
-            }, { passive: false }); // Use { passive: false } to allow preventDefault
+            }, { passive: false });
 
-            // Add event listeners for mousemove and mouseleave to the GIF container
-            gifContainer.addEventListener('mousemove', handleHoverEffect);
-            gifContainer.addEventListener('mouseleave', resetClipPath);
-            
-            // --- NEW: Loop through all hitboxes and add the same event listeners ---
-            hitboxes.forEach(hitbox => {
+            // ── Mouse events on scene and hitboxes ──
+            sceneContainer.addEventListener('mousemove', handleHoverEffect);
+            sceneContainer.addEventListener('mouseleave', resetClipPath);
+
+            planetHitboxes.forEach(hitbox => {
                 hitbox.addEventListener('mousemove', handleHoverEffect);
                 hitbox.addEventListener('mouseleave', resetClipPath);
-                // --- NEW: Add event listeners for sound playback
-                hitbox.addEventListener('mouseenter', handleSoundHover);
-                hitbox.addEventListener('mouseleave', handleSoundLeave);
-                // --- END NEW
+                hitbox.addEventListener('mouseenter', handlePlanetHoverEnter);
+                hitbox.addEventListener('mouseleave', handlePlanetHoverLeave);
             });
 
+            // ── Click: place permanent cutout on scene ──
+            function handleSceneClick(e) {
+                const sceneRect = backgroundSceneGif.getBoundingClientRect();
+                const relX = e.clientX - sceneRect.left;
+                const relY = e.clientY - sceneRect.top;
 
-            // --- MODIFIED CLICK LISTENER FOR RED PLANET ---
-            document.getElementById('fixedHitboxPlanet6').addEventListener('click', () => {
-                if (currentBottomGif === 'redplanet') {
-                    // Currently showing red planet, switch back to default
-                    console.log('Switching back to default GIFs.');
-                    topGif.src = defaultTopGifSrc;
-                    bottomGif.src = defaultBottomGifSrc;
-                    currentBottomGif = 'default';
-                    // Reset cutout radius to original when switching to default
-                    currentCutoutRadius = originalCutoutRadius;
-                    gifContainer.removeEventListener('click', handleGifContainerClick); // Remove click listener if active
-                } else {
-                    // Switch to red planet
-                    console.log('Switching to red planet GIFs. Click on the planet to make cutouts with a 10px minimum radius!');
-                    topGif.src = altTopGifSrc;
-                    bottomGif.src = altBottomGifSrcRed;
-                    currentBottomGif = 'redplanet';
-                    // Add click listener for cutouts only when redplanet is active
-                    gifContainer.addEventListener('click', handleGifContainerClick);
-                }
-                // Always reset cutout data after GIF change
-                permanentCutoutData = []; // Clear permanent cutouts
-                resetClipPath(); // Trigger a redraw via animation loop
-            });
+                if (e.clientX >= sceneRect.left && e.clientX <= sceneRect.right &&
+                    e.clientY >= sceneRect.top  && e.clientY <= sceneRect.bottom) {
 
-            // --- MODIFIED CLICK LISTENER FOR YELLOW PLANET ---
-            document.getElementById('fixedHitboxPlanet3').addEventListener('click', () => {
-                if (currentBottomGif === 'yellowplanet') {
-                    // Currently showing yellow planet, switch back to default
-                    console.log('Switching back to default GIFs.');
-                    topGif.src = defaultTopGifSrc;
-                    bottomGif.src = defaultBottomGifSrc;
-                    currentBottomGif = 'default';
-                    // Reset cutout radius to original when switching to default
-                    currentCutoutRadius = originalCutoutRadius;
-                    gifContainer.removeEventListener('click', handleGifContainerClick); // Remove click listener
-                } else {
-                    // Switch to yellow planet
-                    console.log('Switching to yellow planet GIFs. Click on the planet to make cutouts!');
-                    topGif.src = altTopGifSrc;
-                    bottomGif.src = altBottomGifSrcYellow;
-                    currentBottomGif = 'yellowplanet';
-                    gifContainer.addEventListener('click', handleGifContainerClick); // Add click listener for cutouts
-                }
-                // Always reset cutout data after GIF change
-                permanentCutoutData = []; // Clear permanent cutouts
-                resetClipPath(); // Trigger a redraw via animation loop
-            });
+                    let radius = currentCutoutRadius;
+                    if (activePlanetScene === 'redPlanet')  radius = minCutoutRadius;
+                    else if (activePlanetScene === 'default') radius = originalCutoutRadius;
 
-            // --- New function to handle clicks on the GIF container for cutouts ---
-            function handleGifContainerClick(e) {
-                const gifRect = bottomGif.getBoundingClientRect();
-                const relativeX = e.clientX - gifRect.left;
-                const relativeY = e.clientY - gifRect.top;
-
-                if (e.clientX >= gifRect.left && e.clientX <= gifRect.right &&
-                    e.clientY >= gifRect.top && e.clientY <= gifRect.bottom) {
-
-                    let radiusToUse = currentCutoutRadius; // Default to scroll-controlled radius
-
-                    // If on redplanet, override the radius to the minimum allowed
-                    if (currentBottomGif === 'redplanet') {
-                        radiusToUse = minCutoutRadius;
-                        console.log(`Creating cutout on red planet with fixed radius: ${radiusToUse}px`);
-                    } else if (currentBottomGif === 'yellowplanet') {
-                        console.log(`Creating cutout on yellow planet with scroll-controlled radius: ${radiusToUse}px`);
-                    } else if (currentBottomGif === 'default') {
-                        radiusToUse = originalCutoutRadius; // Force original size for permanent cutouts on default GIF
-                    }
-
-                    permanentCutoutData.push({ originalX: relativeX, originalY: relativeY, radius: radiusToUse });
+                    permanentCutouts.push({ originalX: relX, originalY: relY, radius });
                 }
             }
 
-            // --- Right-click (contextmenu) listener for tint change ---
-            gifContainer.addEventListener('contextmenu', (e) => {
-                // Prevent the default right-click context menu from appearing
-                e.preventDefault();
+            // ── Planet 6 hitbox: toggle red planet scene ──
+            document.getElementById('hitboxPlanet6').addEventListener('click', () => {
+                if (activePlanetScene === 'redPlanet') {
+                    colorOverlayGif.src    = defaultColorOverlaySrc;
+                    backgroundSceneGif.src = defaultBackgroundSceneSrc;
+                    activePlanetScene      = 'default';
+                    currentCutoutRadius    = originalCutoutRadius;
+                    sceneContainer.removeEventListener('click', handleSceneClick);
+                } else {
+                    colorOverlayGif.src    = altColorOverlaySrc;
+                    backgroundSceneGif.src = redPlanetSceneSrc;
+                    activePlanetScene      = 'redPlanet';
+                    sceneContainer.addEventListener('click', handleSceneClick);
+                }
+                permanentCutouts = [];
+                resetClipPath();
+            });
 
-                // Check if the topGif (the one being clipped) is currently visible due to cutouts
-                // We're checking the opacity to determine if there's an active cutout (either hover or permanent)
-                if (topGif.style.opacity == 1) {
-                    currentHueRotation = (currentHueRotation + hueStep) % 360; // Cycle hue from 0 to 360
-                    body.style.filter = `hue-rotate(${currentHueRotation}deg)`;
-                    console.log('Background Tint Hue:', currentHueRotation);
+            // ── Planet 3 hitbox: toggle yellow planet scene ──
+            document.getElementById('hitboxPlanet3').addEventListener('click', () => {
+                if (activePlanetScene === 'yellowPlanet') {
+                    colorOverlayGif.src    = defaultColorOverlaySrc;
+                    backgroundSceneGif.src = defaultBackgroundSceneSrc;
+                    activePlanetScene      = 'default';
+                    currentCutoutRadius    = originalCutoutRadius;
+                    sceneContainer.removeEventListener('click', handleSceneClick);
+                } else {
+                    colorOverlayGif.src    = altColorOverlaySrc;
+                    backgroundSceneGif.src = yellowPlanetSceneSrc;
+                    activePlanetScene      = 'yellowPlanet';
+                    sceneContainer.addEventListener('click', handleSceneClick);
+                }
+                permanentCutouts = [];
+                resetClipPath();
+            });
+
+            // ── Right-click: cycle hue tint when color overlay is visible ──
+            sceneContainer.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                if (colorOverlayGif.style.opacity == 1) {
+                    currentHueRotation  = (currentHueRotation + hueStep) % 360;
+                    body.style.filter   = `hue-rotate(${currentHueRotation}deg)`;
                 }
             });
-            // ------------------------------------------
 
-            // Set initial state
+            // ── Init ──
             resetClipPath();
-
-            // Start the animation loop
             animateCutouts();
-            
-            // Optional: Handle window resize. Resets the mask, it will re-appear on mousemove.
+
             window.addEventListener('resize', () => {
-                cancelAnimationFrame(animationFrameId); // Stop current loop
-                resetClipPath(); // Clear paths/reset state based on new size
-                animateCutouts(); // Start new loop
+                cancelAnimationFrame(animationFrameId);
+                resetClipPath();
+                animateCutouts();
             });
 
-            // Fallback for GIF loading errors (optional)
-            const gifs = document.querySelectorAll('.full-screen-gif');
-            gifs.forEach(gif => {
+            // ── Starfield canvas on loading screen ──
+            (function initStarfield() {
+                const canvas = document.getElementById('starfieldCanvas');
+                const ctx    = canvas.getContext('2d');
+                let stars    = [];
+                let sfRafId  = null;
+
+                function resize() {
+                    canvas.width  = canvas.offsetWidth;
+                    canvas.height = canvas.offsetHeight;
+                }
+
+                function spawnStars(count) {
+                    stars = [];
+                    for (let i = 0; i < count; i++) {
+                        stars.push({
+                            x:        Math.random() * canvas.width,
+                            y:        Math.random() * canvas.height,
+                            w:        (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,  // height (+30%)
+                            h:        ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5), // dash width: 2.5–4x taller
+                            opacity:  Math.random(),                       // start at random phase
+                            speed:    0.005 + Math.random() * 0.015,   // twinkle speed
+                            phase:    Math.random() * Math.PI * 2,     // twinkle phase offset
+                            drift:    (Math.random() - 0.5) * 0.08,    // slow horizontal drift
+                        });
+                    }
+                }
+
+                function drawStars(ts) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    const t = ts * 0.001;
+
+                    stars.forEach(s => {
+                        // Tiny fill stars are dimmer; normal stars stay bright
+                        const twinkle = s.tiny
+                            ? 0.35 + 0.35 * Math.sin(t * s.speed * 60 + s.phase)
+                            : 0.75 + 0.25 * Math.sin(t * s.speed * 60 + s.phase);
+                        ctx.globalAlpha = twinkle;
+
+                        // Slight color variation: pure white vs faint blue-white (matches the screenshot)
+                        ctx.fillStyle = Math.random() < 0.02 ? '#a8d8ff' : '#ffffff';
+
+                        ctx.fillRect(Math.round(s.x), Math.round(s.y), s.w, s.h);
+
+                        // Slow drift
+                        s.x += s.drift;
+                        if (s.x < 0)            s.x = canvas.width;
+                        if (s.x > canvas.width) s.x = 0;
+                    });
+
+                    ctx.globalAlpha = 1;
+                    sfRafId = requestAnimationFrame(drawStars);
+                }
+
+                function startStarfield() {
+                    resize();
+                    spawnStars(420);
+                    sfRafId = requestAnimationFrame(drawStars);
+                }
+
+                function stopStarfield() {
+                    if (sfRafId) cancelAnimationFrame(sfRafId);
+                }
+
+                window.addEventListener('resize', () => {
+                    resize();
+                    spawnStars(420);
+                });
+
+                // Start when loading screen becomes visible, stop when scene takes over
+                const origShowLoadingScreen = showLoadingScreen;
+                // Hook into the flow: start starfield alongside showLoadingScreen
+                // We do this by observing opacity changes on the overlay
+                const sfObserver = new MutationObserver(() => {
+                    if (loadingScreenOverlay.style.opacity === '1') startStarfield();
+                    if (loadingScreenOverlay.style.opacity === '0') stopStarfield();
+                });
+                sfObserver.observe(loadingScreenOverlay, { attributes: true, attributeFilter: ['style'] });
+            })();
+            // ── End starfield ──
+
+            // Fallback for broken GIF loads
+            document.querySelectorAll('.full-screen-gif').forEach(gif => {
                 gif.onerror = () => {
                     console.error('Failed to load GIF:', gif.src);
-                    gif.src = `https://placehold.co/1920x1080/000000/FFFFFF?text=GIF+Loading+Failed`;
+                    gif.src = 'https://placehold.co/1920x1080/000000/FFFFFF?text=GIF+Loading+Failed';
                 };
             });
         });
