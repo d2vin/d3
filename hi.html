@@ -192,10 +192,6 @@
             // ── All planet hitboxes ──
             const planetHitboxes = document.querySelectorAll('.planet-hitbox');
 
-            // ── Startup audio ──
-            const soundPromptAudio = new Audio('./room-welcome-sound.mp3');
-            soundPromptAudio.preload = 'auto';
-
             const loadingScreenLoopAudio = new Audio('./room-welcome-sound.mp3');
             loadingScreenLoopAudio.preload = 'auto';
             loadingScreenLoopAudio.loop = true;
@@ -255,8 +251,6 @@
                 if (hasStarted) return;
                 hasStarted = true;
 
-                soundPromptAudio.play().catch(err => console.error('Sound prompt audio failed:', err));
-
                 soundPromptOverlay.style.opacity = '0';
                 setTimeout(() => soundPromptOverlay.remove(), 1000);
 
@@ -266,6 +260,9 @@
 
             // ── Step 2 → Step 3: Dismiss loading screen, reveal scene ──
             function showMainScene() {
+                if (!hasStarted) return;
+                hasStarted = true;
+
                 loadingCompleteAudio.play().catch(err => console.error('Loading complete audio failed:', err));
                 loadingScreenLoopAudio.pause();
                 loadingScreenLoopAudio.currentTime = 0;
