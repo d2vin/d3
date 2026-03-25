@@ -138,8 +138,8 @@
 <body class="bg-[#1E1E1E]">
 
     <!-- ── Step 1: "Turn on your sound" prompt overlay ── -->
-    <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50">
-        <p class="text-white text-2xl">Please turn on your sound and press "Enter" to start</p>
+    <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 cursor-pointer" style="transition: opacity 1s ease;">
+        <p class="text-white text-2xl">Please turn on your sound and press "Enter" or click to start</p>
     </div>
 
     <!-- ── Step 2: Loading / intro animation overlay ── -->
@@ -252,6 +252,7 @@
                 hasStarted = true;
 
                 soundPromptOverlay.style.opacity = '0';
+                soundPromptOverlay.style.pointerEvents = 'none';
                 setTimeout(() => soundPromptOverlay.remove(), 1000);
 
                 loadingScreenOverlay.style.opacity = '1';
@@ -261,7 +262,6 @@
             // ── Step 2 → Step 3: Dismiss loading screen, reveal scene ──
             function showMainScene() {
                 if (!hasStarted) return;
-                hasStarted = true;
 
                 loadingCompleteAudio.play().catch(err => console.error('Loading complete audio failed:', err));
                 loadingScreenLoopAudio.pause();
@@ -284,7 +284,16 @@
                 }
             }
 
-            document.addEventListener('keydown', handleKeydown);
+            function handleFirstInteraction(e) {
+                if (e.type === 'click' || e.key === 'Enter' || e.keyCode === 13) {
+                    showLoadingScreen();
+                    document.removeEventListener('click', handleFirstInteraction);
+                    document.removeEventListener('keydown', handleFirstInteraction);
+                }
+            }
+
+            document.addEventListener('click', handleFirstInteraction);
+            document.addEventListener('keydown', handleFirstInteraction);
             loadingScreenGif.addEventListener('click', showMainScene);
 
             // ────────────────────────────────────────────────
@@ -529,12 +538,12 @@
                         stars.push({
                             x:        Math.random() * canvas.width,
                             y:        Math.random() * canvas.height,
-                            w:        (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,  // height (+30%)
-                            h:        ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5), // dash width: 2.5–4x taller
-                            opacity:  Math.random(),                       // start at random phase
-                            speed:    0.005 + Math.random() * 0.015,   // twinkle speed
-                            phase:    Math.random() * Math.PI * 2,     // twinkle phase offset
-                            drift:    (Math.random() - 0.5) * 0.08,    // slow horizontal drift
+                            w:        (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,
+                            h:        ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5),
+                            opacity:  Math.random(),
+                            speed:    0.005 + Math.random() * 0.015,
+                            phase:    Math.random() * Math.PI * 2,
+                            drift:    (Math.random() - 0.5) * 0.08,
                         });
                     }
                 }
@@ -544,18 +553,15 @@
                     const t = ts * 0.001;
 
                     stars.forEach(s => {
-                        // Tiny fill stars are dimmer; normal stars stay bright
                         const twinkle = s.tiny
                             ? 0.35 + 0.35 * Math.sin(t * s.speed * 60 + s.phase)
                             : 0.75 + 0.25 * Math.sin(t * s.speed * 60 + s.phase);
                         ctx.globalAlpha = twinkle;
 
-                        // Slight color variation: pure white vs faint blue-white (matches the screenshot)
                         ctx.fillStyle = Math.random() < 0.02 ? '#a8d8ff' : '#ffffff';
 
                         ctx.fillRect(Math.round(s.x), Math.round(s.y), s.w, s.h);
 
-                        // Slow drift
                         s.x += s.drift;
                         if (s.x < 0)            s.x = canvas.width;
                         if (s.x > canvas.width) s.x = 0;
@@ -580,10 +586,6 @@
                     spawnStars(420);
                 });
 
-                // Start when loading screen becomes visible, stop when scene takes over
-                const origShowLoadingScreen = showLoadingScreen;
-                // Hook into the flow: start starfield alongside showLoadingScreen
-                // We do this by observing opacity changes on the overlay
                 const sfObserver = new MutationObserver(() => {
                     if (loadingScreenOverlay.style.opacity === '1') startStarfield();
                     if (loadingScreenOverlay.style.opacity === '0') stopStarfield();
