@@ -15,9 +15,9 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #000;
+            background-color: #14131F;
             position: relative;
-            transition: filter 0.5s ease-in-out;
+            transition: filter 0.5s ease-in-out, background-color 0.7s ease-in-out;
         }
 
         .scene-container {
@@ -99,7 +99,7 @@
         }
     </style>
 </head>
-<body class="bg-[#1E1E1E]">
+<body class="bg-[#14131F]">
 
     <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 cursor-pointer" style="transition: opacity 1s ease;">
         <p class="text-white text-2xl">Please turn on your sound and press "Enter" or click to start</p>
@@ -241,6 +241,7 @@
                 currentCutoutRadius = originalCutoutRadius;
                 permanentCutouts    = [];
                 resetClipPath();
+                body.style.backgroundColor = '#1E1E1E';
 
                 crossFadeBg('./backround-museum.gif', './color-backround.gif', () => {
                     planetHitboxes.forEach(h => h.style.display = '');
@@ -457,10 +458,12 @@
                         currentCutoutRadius = originalCutoutRadius;
                         sceneContainer.removeEventListener('click', handleSceneClick);
                         showAllPlanetHitboxes();
+                        body.style.backgroundColor = '#1E1E1E';
                     });
                 } else {
                     hideAllPlanetHitboxes();
                     document.getElementById('hitboxPlanet6').style.pointerEvents = 'auto';
+                    body.style.backgroundColor = '#000000';
                     crossFadeBg(redPlanetSceneSrc, altColorOverlaySrc, () => {
                         activePlanetScene = 'redPlanet';
                         sceneContainer.addEventListener('click', handleSceneClick);
@@ -478,10 +481,12 @@
                         currentCutoutRadius = originalCutoutRadius;
                         sceneContainer.removeEventListener('click', handleSceneClick);
                         showAllPlanetHitboxes();
+                        body.style.backgroundColor = '#1E1E1E';
                     });
                 } else {
                     hideAllPlanetHitboxes();
                     document.getElementById('hitboxPlanet3').style.pointerEvents = 'auto';
+                    body.style.backgroundColor = '#000000';
                     crossFadeBg(yellowPlanetSceneSrc, altColorOverlaySrc, () => {
                         activePlanetScene = 'yellowPlanet';
                         sceneContainer.addEventListener('click', handleSceneClick);
