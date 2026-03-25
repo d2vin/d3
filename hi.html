@@ -20,7 +20,6 @@
             transition: filter 0.5s ease-in-out;
         }
 
-        /* ── Main scene container ── */
         .scene-container {
             position: absolute;
             top: 0;
@@ -51,13 +50,16 @@
             image-rendering: pixelated;
         }
 
-        /* ── Background scene layer (bottom) ── */
-        #backgroundSceneGif {
+        /* ── Two background layers that cross-fade between each other ── */
+        #backgroundSceneGifA,
+        #backgroundSceneGifB {
             z-index: 0;
             image-rendering: pixelated;
+            transition: opacity 0.7s ease-in-out;
         }
+        #backgroundSceneGifA { opacity: 1; }
+        #backgroundSceneGifB { opacity: 0; }
 
-        /* ── SVG clip-path definition element ── */
         #clipPathSvg {
             position: absolute;
             top: 0;
@@ -68,7 +70,6 @@
             z-index: 2;
         }
 
-        /* ── Planet hitbox base styles ── */
         .planet-hitbox {
             position: absolute;
             border-radius: 50%;
@@ -78,63 +79,14 @@
             cursor: pointer;
         }
 
-        #hitboxPlanet2 {
-            width: 80px;
-            height: 80px;
-            left: 660px;
-            top: 135px;
-            transform: translate(-50%, -50%);
-        }
+        #hitboxPlanet2 { width:80px;  height:80px;  left:660px;  top:135px; transform:translate(-50%,-50%); }
+        #hitboxPlanet3 { width:60px;  height:60px;  left:470px;  top:130px; transform:translate(-50%,-50%); }
+        #hitboxPlanet4 { width:180px; height:180px; left:240px;  top:200px; transform:translate(-50%,-50%); }
+        #hitboxPlanet5 { width:60px;  height:60px;  left:480px;  top:280px; transform:translate(-50%,-50%); }
+        #hitboxPlanet6 { width:80px;  height:80px;  left:660px;  top:270px; transform:translate(-50%,-50%); }
+        #hitboxPlanet7 { width:60px;  height:60px;  left:820px;  top:240px; transform:translate(-50%,-50%); }
+        #hitboxPlanet8 { width:180px; height:180px; left:1020px; top:200px; transform:translate(-50%,-50%); }
 
-        #hitboxPlanet3 {
-            width: 60px;
-            height: 60px;
-            left: 470px;
-            top: 130px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet4 {
-            width: 180px;
-            height: 180px;
-            left: 240px;
-            top: 200px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet5 {
-            width: 60px;
-            height: 60px;
-            left: 480px;
-            top: 280px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet6 {
-            width: 80px;
-            height: 80px;
-            left: 660px;
-            top: 270px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet7 {
-            width: 60px;
-            height: 60px;
-            left: 820px;
-            top: 240px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet8 {
-            width: 180px;
-            height: 180px;
-            left: 1020px;
-            top: 200px;
-            transform: translate(-50%, -50%);
-        }
-
-        /* ── Home scene transition hitbox ── */
         #hitboxHomeTransition {
             position: absolute;
             width: 120px;
@@ -149,24 +101,23 @@
 </head>
 <body class="bg-[#1E1E1E]">
 
-    <!-- ── Step 1: "Turn on your sound" prompt overlay ── -->
     <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 cursor-pointer" style="transition: opacity 1s ease;">
         <p class="text-white text-2xl">Please turn on your sound and press "Enter" or click to start</p>
     </div>
 
-    <!-- ── Step 2: Loading / intro animation overlay ── -->
     <div id="loadingScreenOverlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center z-50 opacity-0 transition-opacity duration-1000" style="background:#000;">
         <canvas id="starfieldCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
         <img id="loadingScreenGif" src="./LoadingScreen.gif" style="position:relative;z-index:1;">
     </div>
 
-    <!-- ── Step 3: Main scene (hidden until loading screen fades out) ── -->
     <div id="sceneContainer" class="scene-container opacity-0 transition-opacity duration-1000">
-        <img id="colorOverlayGif"    src="./homelight.gif"          alt="Color Overlay GIF"    class="full-screen-gif">
-        <img id="backgroundSceneGif" src="./homedark.gif"           alt="Background Scene GIF" class="full-screen-gif">
+        <!-- Color overlay (clip-pathed, always kept in sync with active bg) -->
+        <img id="colorOverlayGif"    src="./homelight.gif" alt="Color Overlay GIF" class="full-screen-gif">
+        <!-- Two bg layers – we cross-fade by swapping their opacities -->
+        <img id="backgroundSceneGifA" src="./homedark.gif" alt="Background Scene A" class="full-screen-gif">
+        <img id="backgroundSceneGifB" src=""               alt="Background Scene B" class="full-screen-gif">
     </div>
 
-    <!-- ── SVG clip-path definition ── -->
     <svg id="clipPathSvg" width="0" height="0">
         <defs>
             <clipPath id="clipJaggedCircle">
@@ -175,10 +126,7 @@
         </defs>
     </svg>
 
-    <!-- ── Home transition hitbox (red outline — reposition as needed) ── -->
     <div id="hitboxHomeTransition"></div>
-
-    <!-- ── Planet hitboxes (hidden until museum scene is active) ── -->
     <div id="hitboxPlanet2" class="planet-hitbox" style="display:none;"></div>
     <div id="hitboxPlanet3" class="planet-hitbox" style="display:none;"></div>
     <div id="hitboxPlanet4" class="planet-hitbox" style="display:none;"></div>
@@ -190,27 +138,57 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            // ── Overlay / screen elements ──
             const soundPromptOverlay   = document.getElementById('soundPromptOverlay');
             const loadingScreenOverlay = document.getElementById('loadingScreenOverlay');
             const loadingScreenGif     = document.getElementById('loadingScreenGif');
             const sceneContainer       = document.getElementById('sceneContainer');
 
-            // ── Scene GIF layers ──
-            const colorOverlayGif    = document.getElementById('colorOverlayGif');
-            const backgroundSceneGif = document.getElementById('backgroundSceneGif');
+            const colorOverlayGif   = document.getElementById('colorOverlayGif');
+            const bgGifA            = document.getElementById('backgroundSceneGifA');
+            const bgGifB            = document.getElementById('backgroundSceneGifB');
+            const jaggedCirclePath  = document.getElementById('jaggedCirclePath');
+            const body              = document.body;
+            const planetHitboxes    = document.querySelectorAll('.planet-hitbox');
 
-            // ── Clip-path path element ──
-            const jaggedCirclePath = document.getElementById('jaggedCirclePath');
-            const body = document.body;
+            // Which layer is currently "on top" / visible
+            let activeBgLayer = 'A'; // 'A' or 'B'
+            let currentScene  = 'home';
 
-            // ── All planet hitboxes ──
-            const planetHitboxes = document.querySelectorAll('.planet-hitbox');
+            const FADE_MS = 700;
 
-            // ── Scene state ──
-            // 'home' = homelight/homedark, 'museum' = color-backround/backround-museum
-            let currentScene = 'home';
+            // Returns the currently-visible bg element
+            function activeBg()   { return activeBgLayer === 'A' ? bgGifA : bgGifB; }
+            // Returns the currently-hidden bg element
+            function inactiveBg() { return activeBgLayer === 'A' ? bgGifB : bgGifA; }
 
+            /**
+             * Cross-fade to a new background src.
+             * 1. Set the new src on the hidden layer.
+             * 2. Fade the hidden layer in (opacity → 1) and the active layer out (opacity → 0).
+             * 3. Swap which layer is considered "active".
+             * 4. Update the color overlay src immediately (it's invisible while no cutout is open).
+             */
+            function crossFadeBg(newBgSrc, newColorSrc, onComplete) {
+                const incoming = inactiveBg();
+                const outgoing = activeBg();
+
+                // Load new src into the hidden layer
+                incoming.src = newBgSrc;
+
+                // Trigger the CSS opacity transition
+                incoming.style.opacity = '1';
+                outgoing.style.opacity = '0';
+
+                // Flip active layer tracker
+                activeBgLayer = activeBgLayer === 'A' ? 'B' : 'A';
+
+                // Swap color overlay src (safe — it's opacity-0 unless cursor is active)
+                colorOverlayGif.src = newColorSrc;
+
+                if (onComplete) setTimeout(onComplete, FADE_MS);
+            }
+
+            // ── Audio ──
             const loadingScreenLoopAudio = new Audio('./room-welcome-sound.mp3');
             loadingScreenLoopAudio.preload = 'auto';
             loadingScreenLoopAudio.loop = true;
@@ -238,71 +216,58 @@
             });
 
             function handlePlanetHoverEnter(e) {
-                if (currentScene !== 'museum') return;
-                const defaultColorOverlay    = 'color-backround.gif';
-                const defaultBackgroundScene = 'backround-museum.gif';
-                const activeColorOverlay     = colorOverlayGif.src.split('/').pop();
-                const activeBackgroundScene  = backgroundSceneGif.src.split('/').pop();
-
-                if (activeColorOverlay === defaultColorOverlay && activeBackgroundScene === defaultBackgroundScene) {
-                    const hitboxId = e.target.id;
-                    const sound = planetHoverSounds[hitboxId];
-                    if (sound && !isPlanetSoundPlaying[hitboxId]) {
+                if (currentScene !== 'museum' || activeBg().style.opacity === '0') return;
+                const activeSrc = activeBg().src.split('/').pop();
+                if (activeSrc === 'backround-museum.gif') {
+                    const id = e.target.id;
+                    const sound = planetHoverSounds[id];
+                    if (sound && !isPlanetSoundPlaying[id]) {
                         sound.currentTime = 0;
-                        sound.play().catch(err => console.error(`Planet sound failed (${hitboxId}):`, err));
-                        isPlanetSoundPlaying[hitboxId] = true;
+                        sound.play().catch(err => console.error(`Planet sound failed (${id}):`, err));
+                        isPlanetSoundPlaying[id] = true;
                     }
                 }
             }
 
             function handlePlanetHoverLeave(e) {
-                const hitboxId = e.target.id;
-                if (planetHoverSounds[hitboxId]) {
-                    isPlanetSoundPlaying[hitboxId] = false;
-                }
+                const id = e.target.id;
+                if (planetHoverSounds[id]) isPlanetSoundPlaying[id] = false;
             }
 
-            // ── Transition: home → museum ──
+            // ── home → museum ──
             function enterMuseumScene() {
-                colorOverlayGif.src    = './color-backround.gif';
-                backgroundSceneGif.src = './backround-museum.gif';
-                currentScene           = 'museum';
-                activePlanetScene      = 'default';
-                currentCutoutRadius    = originalCutoutRadius;
-                permanentCutouts       = [];
+                currentScene        = 'museum';
+                activePlanetScene   = 'default';
+                currentCutoutRadius = originalCutoutRadius;
+                permanentCutouts    = [];
                 resetClipPath();
 
-                // Show planet hitboxes, hide home transition hitbox
-                planetHitboxes.forEach(h => h.style.display = '');
-                document.getElementById('hitboxHomeTransition').style.display = 'none';
+                crossFadeBg('./backround-museum.gif', './color-backround.gif', () => {
+                    planetHitboxes.forEach(h => h.style.display = '');
+                    document.getElementById('hitboxHomeTransition').style.display = 'none';
+                });
             }
 
-            // ── Step 1 → Step 2 ──
+            // ── Step 1 → 2 ──
             function showLoadingScreen() {
                 if (hasStarted) return;
                 hasStarted = true;
-
                 soundPromptOverlay.style.opacity = '0';
                 soundPromptOverlay.style.pointerEvents = 'none';
                 setTimeout(() => soundPromptOverlay.remove(), 1000);
-
                 loadingScreenOverlay.style.opacity = '1';
-                loadingScreenLoopAudio.play().catch(err => console.error('Loading screen loop audio failed:', err));
+                loadingScreenLoopAudio.play().catch(() => {});
             }
 
-            // ── Step 2 → Step 3 ──
+            // ── Step 2 → 3 ──
             function showMainScene() {
                 if (!hasStarted) return;
-
-                loadingCompleteAudio.play().catch(err => console.error('Loading complete audio failed:', err));
+                loadingCompleteAudio.play().catch(() => {});
                 loadingScreenLoopAudio.pause();
                 loadingScreenLoopAudio.currentTime = 0;
-
                 loadingScreenOverlay.style.opacity = '0';
                 sceneContainer.style.opacity = '1';
-
                 document.removeEventListener('keydown', handleKeydown);
-
                 setTimeout(() => {
                     loadingScreenOverlay.remove();
                     sceneContainer.style.pointerEvents = 'auto';
@@ -325,18 +290,12 @@
             document.addEventListener('keydown', handleFirstInteraction);
             loadingScreenGif.addEventListener('click', showMainScene);
 
-            // ── Home transition hitbox click ──
-            document.getElementById('hitboxHomeTransition').addEventListener('click', enterMuseumScene);
-
             const hitboxHomeTransition = document.getElementById('hitboxHomeTransition');
             hitboxHomeTransition.addEventListener('click', enterMuseumScene);
             hitboxHomeTransition.addEventListener('mousemove', handleHoverEffect);
             hitboxHomeTransition.addEventListener('mouseleave', resetClipPath);
 
-            // ────────────────────────────────────────────────
             // ── Clip-path / cutout logic ──
-            // ────────────────────────────────────────────────
-
             let currentCutoutRadius    = 40;
             const originalCutoutRadius = 40;
             const minCutoutRadius      = 10;
@@ -369,11 +328,10 @@
             function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
                 let pathData = '';
                 const angleIncrement = (Math.PI * 2) / numPoints;
-                let prevSnX = 0;
-                let prevSnY = 0;
+                let prevSnX = 0, prevSnY = 0;
 
                 for (let i = 0; i <= numPoints; i++) {
-                    const angle = i * angleIncrement;
+                    const angle   = i * angleIncrement;
                     const snappedX = Math.round((cx + radius * Math.cos(angle)) / pixelGridSize) * pixelGridSize;
                     const snappedY = Math.round((cy + radius * Math.sin(angle)) / pixelGridSize) * pixelGridSize;
 
@@ -382,11 +340,8 @@
                     } else {
                         const dx = Math.abs(snappedX - prevSnX);
                         const dy = Math.abs(snappedY - prevSnY);
-                        if (dx >= dy) {
-                            pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
-                        } else {
-                            pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `;
-                        }
+                        if (dx >= dy) pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
+                        else          pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `;
                     }
                     prevSnX = snappedX;
                     prevSnY = snappedY;
@@ -398,11 +353,10 @@
             let lastMouseY = -1;
 
             function handleHoverEffect(e) {
-                const sceneRect = sceneContainer.getBoundingClientRect();
-                const relX = e.clientX - sceneRect.left;
-                const relY = e.clientY - sceneRect.top;
-
-                if (relX >= 0 && relX <= sceneRect.width && relY >= 0 && relY <= sceneRect.height) {
+                const rect = sceneContainer.getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                if (relX >= 0 && relX <= rect.width && relY >= 0 && relY <= rect.height) {
                     lastMouseX = e.clientX;
                     lastMouseY = e.clientY;
                 } else {
@@ -411,7 +365,7 @@
             }
 
             function animateCutouts() {
-                const sceneRect = backgroundSceneGif.getBoundingClientRect();
+                const sceneRect = activeBg().getBoundingClientRect();
                 let combinedPathData = '';
                 let isColorOverlayVisible = false;
 
@@ -422,12 +376,11 @@
                 }
 
                 if (permanentCutouts.length > 0) {
-                    permanentCutouts.forEach(cutout => {
+                    permanentCutouts.forEach(c => {
                         combinedPathData += generateJaggedCirclePath(
-                            cutout.originalX + clipPathOffsetX,
-                            cutout.originalY + clipPathOffsetY,
-                            cutout.radius,
-                            pixelSize
+                            c.originalX + clipPathOffsetX,
+                            c.originalY + clipPathOffsetY,
+                            c.radius, pixelSize
                         );
                     });
                     isColorOverlayVisible = true;
@@ -436,23 +389,19 @@
                 if (lastMouseX !== -1 && lastMouseY !== -1) {
                     const relX = lastMouseX - sceneRect.left;
                     const relY = lastMouseY - sceneRect.top;
-
                     let hoverRadius = currentCutoutRadius;
                     if (activePlanetScene === 'redPlanet')    hoverRadius = minCutoutRadius;
                     else if (activePlanetScene === 'default') hoverRadius = originalCutoutRadius;
-
                     combinedPathData += generateJaggedCirclePath(
                         relX + clipPathOffsetX,
                         relY + clipPathOffsetY,
-                        hoverRadius,
-                        pixelSize
+                        hoverRadius, pixelSize
                     );
                     isColorOverlayVisible = true;
                 }
 
                 jaggedCirclePath.setAttribute('d', combinedPathData);
                 colorOverlayGif.style.opacity = isColorOverlayVisible ? 1 : 0;
-
                 animationFrameId = requestAnimationFrame(animateCutouts);
             }
 
@@ -474,41 +423,48 @@
             sceneContainer.addEventListener('mouseleave', resetClipPath);
 
             planetHitboxes.forEach(hitbox => {
-                hitbox.addEventListener('mousemove', handleHoverEffect);
-                hitbox.addEventListener('mouseleave', resetClipPath);
+                hitbox.addEventListener('mousemove',  (e) => { if (currentScene !== 'museum') return; handleHoverEffect(e); });
+                hitbox.addEventListener('mouseleave', (e) => { if (currentScene !== 'museum') return; resetClipPath(); });
                 hitbox.addEventListener('mouseenter', handlePlanetHoverEnter);
                 hitbox.addEventListener('mouseleave', handlePlanetHoverLeave);
             });
 
             function handleSceneClick(e) {
-                const sceneRect = backgroundSceneGif.getBoundingClientRect();
-                const relX = e.clientX - sceneRect.left;
-                const relY = e.clientY - sceneRect.top;
-
-                if (e.clientX >= sceneRect.left && e.clientX <= sceneRect.right &&
-                    e.clientY >= sceneRect.top  && e.clientY <= sceneRect.bottom) {
-
+                const rect = activeBg().getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                    e.clientY >= rect.top  && e.clientY <= rect.bottom) {
                     let radius = currentCutoutRadius;
                     if (activePlanetScene === 'redPlanet')    radius = minCutoutRadius;
                     else if (activePlanetScene === 'default') radius = originalCutoutRadius;
-
                     permanentCutouts.push({ originalX: relX, originalY: relY, radius });
                 }
+            }
+
+            function hideAllPlanetHitboxes() {
+                planetHitboxes.forEach(h => h.style.pointerEvents = 'none');
+            }
+            function showAllPlanetHitboxes() {
+                planetHitboxes.forEach(h => h.style.pointerEvents = 'auto');
             }
 
             document.getElementById('hitboxPlanet6').addEventListener('click', () => {
                 if (currentScene !== 'museum') return;
                 if (activePlanetScene === 'redPlanet') {
-                    colorOverlayGif.src    = defaultColorOverlaySrc;
-                    backgroundSceneGif.src = defaultBackgroundSceneSrc;
-                    activePlanetScene      = 'default';
-                    currentCutoutRadius    = originalCutoutRadius;
-                    sceneContainer.removeEventListener('click', handleSceneClick);
+                    crossFadeBg(defaultBackgroundSceneSrc, defaultColorOverlaySrc, () => {
+                        activePlanetScene   = 'default';
+                        currentCutoutRadius = originalCutoutRadius;
+                        sceneContainer.removeEventListener('click', handleSceneClick);
+                        showAllPlanetHitboxes();
+                    });
                 } else {
-                    colorOverlayGif.src    = altColorOverlaySrc;
-                    backgroundSceneGif.src = redPlanetSceneSrc;
-                    activePlanetScene      = 'redPlanet';
-                    sceneContainer.addEventListener('click', handleSceneClick);
+                    hideAllPlanetHitboxes();
+                    document.getElementById('hitboxPlanet6').style.pointerEvents = 'auto';
+                    crossFadeBg(redPlanetSceneSrc, altColorOverlaySrc, () => {
+                        activePlanetScene = 'redPlanet';
+                        sceneContainer.addEventListener('click', handleSceneClick);
+                    });
                 }
                 permanentCutouts = [];
                 resetClipPath();
@@ -517,16 +473,19 @@
             document.getElementById('hitboxPlanet3').addEventListener('click', () => {
                 if (currentScene !== 'museum') return;
                 if (activePlanetScene === 'yellowPlanet') {
-                    colorOverlayGif.src    = defaultColorOverlaySrc;
-                    backgroundSceneGif.src = defaultBackgroundSceneSrc;
-                    activePlanetScene      = 'default';
-                    currentCutoutRadius    = originalCutoutRadius;
-                    sceneContainer.removeEventListener('click', handleSceneClick);
+                    crossFadeBg(defaultBackgroundSceneSrc, defaultColorOverlaySrc, () => {
+                        activePlanetScene   = 'default';
+                        currentCutoutRadius = originalCutoutRadius;
+                        sceneContainer.removeEventListener('click', handleSceneClick);
+                        showAllPlanetHitboxes();
+                    });
                 } else {
-                    colorOverlayGif.src    = altColorOverlaySrc;
-                    backgroundSceneGif.src = yellowPlanetSceneSrc;
-                    activePlanetScene      = 'yellowPlanet';
-                    sceneContainer.addEventListener('click', handleSceneClick);
+                    hideAllPlanetHitboxes();
+                    document.getElementById('hitboxPlanet3').style.pointerEvents = 'auto';
+                    crossFadeBg(yellowPlanetSceneSrc, altColorOverlaySrc, () => {
+                        activePlanetScene = 'yellowPlanet';
+                        sceneContainer.addEventListener('click', handleSceneClick);
+                    });
                 }
                 permanentCutouts = [];
                 resetClipPath();
@@ -549,26 +508,22 @@
                 animateCutouts();
             });
 
-            // ── Starfield canvas ──
+            // ── Starfield ──
             (function initStarfield() {
                 const canvas = document.getElementById('starfieldCanvas');
                 const ctx    = canvas.getContext('2d');
-                let stars    = [];
-                let sfRafId  = null;
+                let stars = [], sfRafId = null;
 
-                function resize() {
-                    canvas.width  = canvas.offsetWidth;
-                    canvas.height = canvas.offsetHeight;
-                }
+                function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
 
                 function spawnStars(count) {
                     stars = [];
                     for (let i = 0; i < count; i++) {
                         stars.push({
-                            x:       Math.random() * canvas.width,
-                            y:       Math.random() * canvas.height,
-                            w:       (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,
-                            h:       ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5),
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            w: (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,
+                            h: ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5),
                             opacity: Math.random(),
                             speed:   0.005 + Math.random() * 0.015,
                             phase:   Math.random() * Math.PI * 2,
