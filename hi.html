@@ -39,7 +39,6 @@
             object-fit: cover;
         }
 
-        /* ── Color overlay layer (top, clip-pathed) ── */
         #colorOverlayGif {
             z-index: 1;
             pointer-events: none;
@@ -50,7 +49,6 @@
             image-rendering: pixelated;
         }
 
-        /* ── Two background layers that cross-fade between each other ── */
         #backgroundSceneGifA,
         #backgroundSceneGifB {
             z-index: 0;
@@ -59,6 +57,21 @@
         }
         #backgroundSceneGifA { opacity: 1; }
         #backgroundSceneGifB { opacity: 0; }
+
+        /* Simple overlay for record store & shop — sits above bg layers, no clip-path */
+        #simpleSceneGif {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 3;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.7s ease-in-out;
+            image-rendering: pixelated;
+        }
 
         #clipPathSvg {
             position: absolute;
@@ -96,6 +109,33 @@
             transform: translate(-50%, -50%);
             z-index: 4;
             cursor: pointer;
+            border: red 2px solid;
+        }
+
+        /* Record Store hitbox — left side of home scene */
+        #hitboxRecordStore {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 800px;
+            top: 450px;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
+            border: red 2px solid; /* Debugging border, remove in production */
+        }
+
+        /* Shop hitbox — right side of home scene */
+        #hitboxShop {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 650px;
+            top: 475px;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
+            border: red 2px solid;
         }
     </style>
 </head>
@@ -111,11 +151,13 @@
     </div>
 
     <div id="sceneContainer" class="scene-container opacity-0 transition-opacity duration-1000">
-        <!-- Color overlay (clip-pathed, always kept in sync with active bg) -->
-        <img id="colorOverlayGif"    src="./homelight.gif" alt="Color Overlay GIF" class="full-screen-gif">
-        <!-- Two bg layers – we cross-fade by swapping their opacities -->
-        <img id="backgroundSceneGifA" src="./homedark.gif" alt="Background Scene A" class="full-screen-gif">
-        <img id="backgroundSceneGifB" src=""               alt="Background Scene B" class="full-screen-gif">
+        <!-- Simple full-screen gif for record store / shop (no cutout) -->
+        <img id="simpleSceneGif" src="" alt="Simple Scene GIF" class="full-screen-gif">
+        <!-- Color overlay (clip-pathed) -->
+        <img id="colorOverlayGif"     src="./homelight.gif" alt="Color Overlay GIF" class="full-screen-gif">
+        <!-- Two bg layers – cross-fade by swapping opacities -->
+        <img id="backgroundSceneGifA" src="./homedark.gif"  alt="Background Scene A" class="full-screen-gif">
+        <img id="backgroundSceneGifB" src=""                alt="Background Scene B" class="full-screen-gif">
     </div>
 
     <svg id="clipPathSvg" width="0" height="0">
@@ -127,6 +169,8 @@
     </svg>
 
     <div id="hitboxHomeTransition"></div>
+    <div id="hitboxRecordStore"></div>
+    <div id="hitboxShop"></div>
     <div id="hitboxPlanet2" class="planet-hitbox" style="display:none;"></div>
     <div id="hitboxPlanet3" class="planet-hitbox" style="display:none;"></div>
     <div id="hitboxPlanet4" class="planet-hitbox" style="display:none;"></div>
@@ -146,46 +190,43 @@
             const colorOverlayGif   = document.getElementById('colorOverlayGif');
             const bgGifA            = document.getElementById('backgroundSceneGifA');
             const bgGifB            = document.getElementById('backgroundSceneGifB');
+            const simpleSceneGif    = document.getElementById('simpleSceneGif');
             const jaggedCirclePath  = document.getElementById('jaggedCirclePath');
             const body              = document.body;
             const planetHitboxes    = document.querySelectorAll('.planet-hitbox');
 
-            // Which layer is currently "on top" / visible
-            let activeBgLayer = 'A'; // 'A' or 'B'
-            let currentScene  = 'home';
+            let activeBgLayer = 'A';
+            let currentScene  = 'home'; // 'home' | 'museum' | 'recordStore' | 'shop'
 
             const FADE_MS = 700;
 
-            // Returns the currently-visible bg element
             function activeBg()   { return activeBgLayer === 'A' ? bgGifA : bgGifB; }
-            // Returns the currently-hidden bg element
             function inactiveBg() { return activeBgLayer === 'A' ? bgGifB : bgGifA; }
 
-            /**
-             * Cross-fade to a new background src.
-             * 1. Set the new src on the hidden layer.
-             * 2. Fade the hidden layer in (opacity → 1) and the active layer out (opacity → 0).
-             * 3. Swap which layer is considered "active".
-             * 4. Update the color overlay src immediately (it's invisible while no cutout is open).
-             */
             function crossFadeBg(newBgSrc, newColorSrc, onComplete) {
                 const incoming = inactiveBg();
                 const outgoing = activeBg();
-
-                // Load new src into the hidden layer
                 incoming.src = newBgSrc;
-
-                // Trigger the CSS opacity transition
                 incoming.style.opacity = '1';
                 outgoing.style.opacity = '0';
-
-                // Flip active layer tracker
                 activeBgLayer = activeBgLayer === 'A' ? 'B' : 'A';
-
-                // Swap color overlay src (safe — it's opacity-0 unless cursor is active)
                 colorOverlayGif.src = newColorSrc;
-
                 if (onComplete) setTimeout(onComplete, FADE_MS);
+            }
+
+            // ── Show a simple full-screen gif (with cutout on top), hiding bg layers ──
+            function enterSimpleScene(gifSrc, sceneName) {
+                currentScene = sceneName;
+                // Disable home hitboxes while in simple scene
+                document.getElementById('hitboxHomeTransition').style.pointerEvents = 'none';
+                document.getElementById('hitboxRecordStore').style.pointerEvents    = 'none';
+                document.getElementById('hitboxShop').style.pointerEvents           = 'none';
+                // Reset mouse position so no stale cutout appears on entry
+                resetClipPath();
+                // Load and fade in the simple gif on top
+                simpleSceneGif.src = gifSrc;
+                simpleSceneGif.style.opacity = '1';
+                simpleSceneGif.style.pointerEvents = 'auto';
             }
 
             // ── Audio ──
@@ -246,8 +287,28 @@
                 crossFadeBg('./backround-museum.gif', './color-backround.gif', () => {
                     planetHitboxes.forEach(h => h.style.display = '');
                     document.getElementById('hitboxHomeTransition').style.display = 'none';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents = 'none';
+                    document.getElementById('hitboxShop').style.pointerEvents        = 'none';
                 });
             }
+
+            // ── home → recordStore ──
+            document.getElementById('hitboxRecordStore').addEventListener('click', () => {
+                if (currentScene !== 'home') return;
+                enterSimpleScene('./recordStore.gif', 'recordStore');
+            });
+
+            // ── home → shop ──
+            document.getElementById('hitboxShop').addEventListener('click', () => {
+                if (currentScene !== 'home') return;
+                enterSimpleScene('./shop.gif', 'shop');
+            });
+
+            // ── Hover listeners for shop & record store hitboxes ──
+            document.getElementById('hitboxRecordStore').addEventListener('mousemove', handleHoverEffect);
+            document.getElementById('hitboxRecordStore').addEventListener('mouseleave', resetClipPath);
+            document.getElementById('hitboxShop').addEventListener('mousemove', handleHoverEffect);
+            document.getElementById('hitboxShop').addEventListener('mouseleave', resetClipPath);
 
             // ── Step 1 → 2 ──
             function showLoadingScreen() {
