@@ -15,12 +15,11 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #000;
+            background-color: #14131F;
             position: relative;
-            transition: filter 0.5s ease-in-out;
+            transition: filter 0.5s ease-in-out, background-color 0.7s ease-in-out;
         }
 
-        /* ── Main scene container ── */
         .scene-container {
             position: absolute;
             top: 0;
@@ -40,7 +39,6 @@
             object-fit: cover;
         }
 
-        /* ── Color overlay layer (top, clip-pathed) ── */
         #colorOverlayGif {
             z-index: 1;
             pointer-events: none;
@@ -51,13 +49,30 @@
             image-rendering: pixelated;
         }
 
-        /* ── Background scene layer (bottom) ── */
-        #backgroundSceneGif {
+        #backgroundSceneGifA,
+        #backgroundSceneGifB {
             z-index: 0;
+            image-rendering: pixelated;
+            transition: opacity 0.7s ease-in-out;
+        }
+        #backgroundSceneGifA { opacity: 1; }
+        #backgroundSceneGifB { opacity: 0; }
+
+        /* Simple overlay for record store & shop — sits above bg layers, no clip-path */
+        #simpleSceneGif {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 3;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.7s ease-in-out;
             image-rendering: pixelated;
         }
 
-        /* ── SVG clip-path definition element ── */
         #clipPathSvg {
             position: absolute;
             top: 0;
@@ -68,7 +83,6 @@
             z-index: 2;
         }
 
-        /* ── Planet hitbox base styles ── */
         .planet-hitbox {
             position: absolute;
             border-radius: 50%;
@@ -78,83 +92,71 @@
             cursor: pointer;
         }
 
-        #hitboxPlanet2 {
-            width: 80px;
-            height: 80px;
-            left: 660px;
-            top: 135px;
+        #hitboxPlanet2 { width:80px;  height:80px;  left:660px;  top:135px; transform:translate(-50%,-50%); }
+        #hitboxPlanet3 { width:60px;  height:60px;  left:470px;  top:130px; transform:translate(-50%,-50%); }
+        #hitboxPlanet4 { width:180px; height:180px; left:240px;  top:200px; transform:translate(-50%,-50%); }
+        #hitboxPlanet5 { width:60px;  height:60px;  left:480px;  top:280px; transform:translate(-50%,-50%); }
+        #hitboxPlanet6 { width:80px;  height:80px;  left:660px;  top:270px; transform:translate(-50%,-50%); }
+        #hitboxPlanet7 { width:60px;  height:60px;  left:820px;  top:240px; transform:translate(-50%,-50%); }
+        #hitboxPlanet8 { width:180px; height:180px; left:1020px; top:200px; transform:translate(-50%,-50%); }
+
+        #hitboxHomeTransition {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 500px;
+            top: 500px;
             transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
         }
 
-        #hitboxPlanet3 {
-            width: 60px;
-            height: 60px;
-            left: 470px;
-            top: 130px;
+        /* Record Store hitbox — left side of home scene */
+        #hitboxRecordStore {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 800px;
+            top: 450px;
             transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
         }
 
-        #hitboxPlanet4 {
-            width: 180px;
-            height: 180px;
-            left: 240px;
-            top: 200px;
+        /* Shop hitbox — right side of home scene */
+        #hitboxShop {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 650px;
+            top: 475px;
             transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet5 {
-            width: 60px;
-            height: 60px;
-            left: 480px;
-            top: 280px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet6 {
-            width: 80px;
-            height: 80px;
-            left: 660px;
-            top: 270px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet7 {
-            width: 60px;
-            height: 60px;
-            left: 820px;
-            top: 240px;
-            transform: translate(-50%, -50%);
-        }
-
-        #hitboxPlanet8 {
-            width: 180px;
-            height: 180px;
-            left: 1020px;
-            top: 200px;
-            transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
         }
     </style>
 </head>
-<body class="bg-[#1E1E1E]">
+<body class="bg-[#14131F]">
 
-    <!-- ── Step 1: "Turn on your sound" prompt overlay ── -->
     <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 cursor-pointer" style="transition: opacity 1s ease;">
         <p class="text-white text-2xl">Please turn on your sound and press "Enter" or click to start</p>
     </div>
 
-    <!-- ── Step 2: Loading / intro animation overlay ── -->
     <div id="loadingScreenOverlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center z-50 opacity-0 transition-opacity duration-1000" style="background:#000;">
         <canvas id="starfieldCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
         <img id="loadingScreenGif" src="./LoadingScreen.gif" style="position:relative;z-index:1;">
     </div>
 
-    <!-- ── Step 3: Main scene (hidden until loading screen fades out) ── -->
     <div id="sceneContainer" class="scene-container opacity-0 transition-opacity duration-1000">
-        <img id="colorOverlayGif"    src="./color-backround.gif"   alt="Color Overlay GIF"    class="full-screen-gif">
-        <img id="backgroundSceneGif" src="./backround-museum.gif"  alt="Background Scene GIF" class="full-screen-gif">
+        <!-- Simple full-screen gif for record store / shop (no cutout) -->
+        <img id="simpleSceneGif" src="" alt="Simple Scene GIF" class="full-screen-gif">
+        <!-- Color overlay (clip-pathed) -->
+        <img id="colorOverlayGif"     src="./homelight.gif" alt="Color Overlay GIF" class="full-screen-gif">
+        <!-- Two bg layers – cross-fade by swapping opacities -->
+        <img id="backgroundSceneGifA" src="./homedark.gif"  alt="Background Scene A" class="full-screen-gif">
+        <img id="backgroundSceneGifB" src=""                alt="Background Scene B" class="full-screen-gif">
     </div>
 
-    <!-- ── SVG clip-path definition ── -->
     <svg id="clipPathSvg" width="0" height="0">
         <defs>
             <clipPath id="clipJaggedCircle">
@@ -163,35 +165,68 @@
         </defs>
     </svg>
 
-    <!-- ── Planet hitboxes ── -->
-    <div id="hitboxPlanet2" class="planet-hitbox"></div>
-    <div id="hitboxPlanet3" class="planet-hitbox"></div>
-    <div id="hitboxPlanet4" class="planet-hitbox"></div>
-    <div id="hitboxPlanet5" class="planet-hitbox"></div>
-    <div id="hitboxPlanet6" class="planet-hitbox"></div>
-    <div id="hitboxPlanet7" class="planet-hitbox"></div>
-    <div id="hitboxPlanet8" class="planet-hitbox"></div>
+    <div id="hitboxHomeTransition"></div>
+    <div id="hitboxRecordStore"></div>
+    <div id="hitboxShop"></div>
+    <div id="hitboxPlanet2" class="planet-hitbox" style="display:none;"></div>
+    <div id="hitboxPlanet3" class="planet-hitbox" style="display:none;"></div>
+    <div id="hitboxPlanet4" class="planet-hitbox" style="display:none;"></div>
+    <div id="hitboxPlanet5" class="planet-hitbox" style="display:none;"></div>
+    <div id="hitboxPlanet6" class="planet-hitbox" style="display:none;"></div>
+    <div id="hitboxPlanet7" class="planet-hitbox" style="display:none;"></div>
+    <div id="hitboxPlanet8" class="planet-hitbox" style="display:none;"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            // ── Overlay / screen elements ──
-            const soundPromptOverlay  = document.getElementById('soundPromptOverlay');
+            const soundPromptOverlay   = document.getElementById('soundPromptOverlay');
             const loadingScreenOverlay = document.getElementById('loadingScreenOverlay');
-            const loadingScreenGif    = document.getElementById('loadingScreenGif');
-            const sceneContainer      = document.getElementById('sceneContainer');
+            const loadingScreenGif     = document.getElementById('loadingScreenGif');
+            const sceneContainer       = document.getElementById('sceneContainer');
 
-            // ── Scene GIF layers ──
-            const colorOverlayGif    = document.getElementById('colorOverlayGif');
-            const backgroundSceneGif = document.getElementById('backgroundSceneGif');
+            const colorOverlayGif   = document.getElementById('colorOverlayGif');
+            const bgGifA            = document.getElementById('backgroundSceneGifA');
+            const bgGifB            = document.getElementById('backgroundSceneGifB');
+            const simpleSceneGif    = document.getElementById('simpleSceneGif');
+            const jaggedCirclePath  = document.getElementById('jaggedCirclePath');
+            const body              = document.body;
+            const planetHitboxes    = document.querySelectorAll('.planet-hitbox');
 
-            // ── Clip-path path element ──
-            const jaggedCirclePath = document.getElementById('jaggedCirclePath');
-            const body = document.body;
+            let activeBgLayer = 'A';
+            let currentScene  = 'home'; // 'home' | 'museum' | 'recordStore' | 'shop'
 
-            // ── All planet hitboxes ──
-            const planetHitboxes = document.querySelectorAll('.planet-hitbox');
+            const FADE_MS = 700;
 
+            function activeBg()   { return activeBgLayer === 'A' ? bgGifA : bgGifB; }
+            function inactiveBg() { return activeBgLayer === 'A' ? bgGifB : bgGifA; }
+
+            function crossFadeBg(newBgSrc, newColorSrc, onComplete) {
+                const incoming = inactiveBg();
+                const outgoing = activeBg();
+                incoming.src = newBgSrc;
+                incoming.style.opacity = '1';
+                outgoing.style.opacity = '0';
+                activeBgLayer = activeBgLayer === 'A' ? 'B' : 'A';
+                colorOverlayGif.src = newColorSrc;
+                if (onComplete) setTimeout(onComplete, FADE_MS);
+            }
+
+            // ── Show a simple full-screen gif (with cutout on top), hiding bg layers ──
+            function enterSimpleScene(gifSrc, sceneName) {
+                currentScene = sceneName;
+                // Disable home hitboxes while in simple scene
+                document.getElementById('hitboxHomeTransition').style.pointerEvents = 'none';
+                document.getElementById('hitboxRecordStore').style.pointerEvents    = 'none';
+                document.getElementById('hitboxShop').style.pointerEvents           = 'none';
+                // Reset mouse position so no stale cutout appears on entry
+                resetClipPath();
+                // Load and fade in the simple gif on top
+                simpleSceneGif.src = gifSrc;
+                simpleSceneGif.style.opacity = '1';
+                simpleSceneGif.style.pointerEvents = 'auto';
+            }
+
+            // ── Audio ──
             const loadingScreenLoopAudio = new Audio('./room-welcome-sound.mp3');
             loadingScreenLoopAudio.preload = 'auto';
             loadingScreenLoopAudio.loop = true;
@@ -212,66 +247,86 @@
                 'hitboxPlanet8': new Audio('./planet-8.mp3'),
             };
 
-            // Track whether each planet's sound is currently playing
             const isPlanetSoundPlaying = {};
             Object.keys(planetHoverSounds).forEach(id => {
                 planetHoverSounds[id].preload = 'auto';
                 isPlanetSoundPlaying[id] = false;
             });
 
-            // Play a planet's hover sound only when the default scene is active
             function handlePlanetHoverEnter(e) {
-                const defaultColorOverlay  = 'color-backround.gif';
-                const defaultBackgroundScene = 'backround-museum.gif';
-
-                const activeColorOverlay    = colorOverlayGif.src.split('/').pop();
-                const activeBackgroundScene = backgroundSceneGif.src.split('/').pop();
-
-                if (activeColorOverlay === defaultColorOverlay && activeBackgroundScene === defaultBackgroundScene) {
-                    const hitboxId = e.target.id;
-                    const sound = planetHoverSounds[hitboxId];
-
-                    if (sound && !isPlanetSoundPlaying[hitboxId]) {
+                if (currentScene !== 'museum' || activeBg().style.opacity === '0') return;
+                const activeSrc = activeBg().src.split('/').pop();
+                if (activeSrc === 'backround-museum.gif') {
+                    const id = e.target.id;
+                    const sound = planetHoverSounds[id];
+                    if (sound && !isPlanetSoundPlaying[id]) {
                         sound.currentTime = 0;
-                        sound.play().catch(err => console.error(`Planet sound failed (${hitboxId}):`, err));
-                        isPlanetSoundPlaying[hitboxId] = true;
+                        sound.play().catch(err => console.error(`Planet sound failed (${id}):`, err));
+                        isPlanetSoundPlaying[id] = true;
                     }
                 }
             }
 
             function handlePlanetHoverLeave(e) {
-                const hitboxId = e.target.id;
-                if (planetHoverSounds[hitboxId]) {
-                    isPlanetSoundPlaying[hitboxId] = false;
-                }
+                const id = e.target.id;
+                if (planetHoverSounds[id]) isPlanetSoundPlaying[id] = false;
             }
 
-            // ── Step 1 → Step 2: Dismiss sound prompt, show loading screen ──
+            // ── home → museum ──
+            function enterMuseumScene() {
+                currentScene        = 'museum';
+                activePlanetScene   = 'default';
+                currentCutoutRadius = originalCutoutRadius;
+                permanentCutouts    = [];
+                resetClipPath();
+                body.style.backgroundColor = '#1E1E1E';
+
+                crossFadeBg('./backround-museum.gif', './color-backround.gif', () => {
+                    planetHitboxes.forEach(h => h.style.display = '');
+                    document.getElementById('hitboxHomeTransition').style.display = 'none';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents = 'none';
+                    document.getElementById('hitboxShop').style.pointerEvents        = 'none';
+                });
+            }
+
+            // ── home → recordStore ──
+            document.getElementById('hitboxRecordStore').addEventListener('click', () => {
+                if (currentScene !== 'home') return;
+                enterSimpleScene('./recordStore.gif', 'recordStore');
+            });
+
+            // ── home → shop ──
+            document.getElementById('hitboxShop').addEventListener('click', () => {
+                if (currentScene !== 'home') return;
+                enterSimpleScene('./shop.gif', 'shop');
+            });
+
+            // ── Hover listeners for shop & record store hitboxes ──
+            document.getElementById('hitboxRecordStore').addEventListener('mousemove', handleHoverEffect);
+            document.getElementById('hitboxRecordStore').addEventListener('mouseleave', resetClipPath);
+            document.getElementById('hitboxShop').addEventListener('mousemove', handleHoverEffect);
+            document.getElementById('hitboxShop').addEventListener('mouseleave', resetClipPath);
+
+            // ── Step 1 → 2 ──
             function showLoadingScreen() {
                 if (hasStarted) return;
                 hasStarted = true;
-
                 soundPromptOverlay.style.opacity = '0';
                 soundPromptOverlay.style.pointerEvents = 'none';
                 setTimeout(() => soundPromptOverlay.remove(), 1000);
-
                 loadingScreenOverlay.style.opacity = '1';
-                loadingScreenLoopAudio.play().catch(err => console.error('Loading screen loop audio failed:', err));
+                loadingScreenLoopAudio.play().catch(() => {});
             }
 
-            // ── Step 2 → Step 3: Dismiss loading screen, reveal scene ──
+            // ── Step 2 → 3 ──
             function showMainScene() {
                 if (!hasStarted) return;
-
-                loadingCompleteAudio.play().catch(err => console.error('Loading complete audio failed:', err));
+                loadingCompleteAudio.play().catch(() => {});
                 loadingScreenLoopAudio.pause();
                 loadingScreenLoopAudio.currentTime = 0;
-
                 loadingScreenOverlay.style.opacity = '0';
                 sceneContainer.style.opacity = '1';
-
                 document.removeEventListener('keydown', handleKeydown);
-
                 setTimeout(() => {
                     loadingScreenOverlay.remove();
                     sceneContainer.style.pointerEvents = 'auto';
@@ -279,9 +334,7 @@
             }
 
             function handleKeydown(e) {
-                if (e.key === 'Enter' || e.keyCode === 13) {
-                    showLoadingScreen();
-                }
+                if (e.key === 'Enter' || e.keyCode === 13) showLoadingScreen();
             }
 
             function handleFirstInteraction(e) {
@@ -296,23 +349,24 @@
             document.addEventListener('keydown', handleFirstInteraction);
             loadingScreenGif.addEventListener('click', showMainScene);
 
-            // ────────────────────────────────────────────────
-            // ── Clip-path / cutout logic ──
-            // ────────────────────────────────────────────────
+            const hitboxHomeTransition = document.getElementById('hitboxHomeTransition');
+            hitboxHomeTransition.addEventListener('click', enterMuseumScene);
+            hitboxHomeTransition.addEventListener('mousemove', handleHoverEffect);
+            hitboxHomeTransition.addEventListener('mouseleave', resetClipPath);
 
-            let currentCutoutRadius   = 40;
+            // ── Clip-path / cutout logic ──
+            let currentCutoutRadius    = 40;
             const originalCutoutRadius = 40;
             const minCutoutRadius      = 10;
             const maxCutoutRadius      = 100;
             const radiusStep           = 5;
 
-            const pixelSize         = 5;
-            const jitterOffsetRange = 2;
+            const pixelSize           = 5;
+            const jitterOffsetRange   = 2;
             const jiggleFrameInterval = 10;
 
-            // Tracks which planet scene is active: 'default' | 'redPlanet' | 'yellowPlanet'
-            let activePlanetScene  = 'default';
-            let permanentCutouts   = []; // { originalX, originalY, radius }
+            let activePlanetScene = 'default';
+            let permanentCutouts  = [];
 
             let clipPathOffsetX = 0;
             let clipPathOffsetY = 0;
@@ -333,11 +387,10 @@
             function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
                 let pathData = '';
                 const angleIncrement = (Math.PI * 2) / numPoints;
-                let prevSnX = 0;
-                let prevSnY = 0;
+                let prevSnX = 0, prevSnY = 0;
 
                 for (let i = 0; i <= numPoints; i++) {
-                    const angle = i * angleIncrement;
+                    const angle   = i * angleIncrement;
                     const snappedX = Math.round((cx + radius * Math.cos(angle)) / pixelGridSize) * pixelGridSize;
                     const snappedY = Math.round((cy + radius * Math.sin(angle)) / pixelGridSize) * pixelGridSize;
 
@@ -346,11 +399,8 @@
                     } else {
                         const dx = Math.abs(snappedX - prevSnX);
                         const dy = Math.abs(snappedY - prevSnY);
-                        if (dx >= dy) {
-                            pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
-                        } else {
-                            pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `;
-                        }
+                        if (dx >= dy) pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
+                        else          pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `;
                     }
                     prevSnX = snappedX;
                     prevSnY = snappedY;
@@ -362,11 +412,10 @@
             let lastMouseY = -1;
 
             function handleHoverEffect(e) {
-                const sceneRect = sceneContainer.getBoundingClientRect();
-                const relX = e.clientX - sceneRect.left;
-                const relY = e.clientY - sceneRect.top;
-
-                if (relX >= 0 && relX <= sceneRect.width && relY >= 0 && relY <= sceneRect.height) {
+                const rect = sceneContainer.getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                if (relX >= 0 && relX <= rect.width && relY >= 0 && relY <= rect.height) {
                     lastMouseX = e.clientX;
                     lastMouseY = e.clientY;
                 } else {
@@ -375,7 +424,7 @@
             }
 
             function animateCutouts() {
-                const sceneRect = backgroundSceneGif.getBoundingClientRect();
+                const sceneRect = activeBg().getBoundingClientRect();
                 let combinedPathData = '';
                 let isColorOverlayVisible = false;
 
@@ -385,40 +434,33 @@
                     clipPathOffsetY = Math.random() * 2 * jitterOffsetRange - jitterOffsetRange;
                 }
 
-                // Render permanent cutouts
                 if (permanentCutouts.length > 0) {
-                    permanentCutouts.forEach(cutout => {
+                    permanentCutouts.forEach(c => {
                         combinedPathData += generateJaggedCirclePath(
-                            cutout.originalX + clipPathOffsetX,
-                            cutout.originalY + clipPathOffsetY,
-                            cutout.radius,
-                            pixelSize
+                            c.originalX + clipPathOffsetX,
+                            c.originalY + clipPathOffsetY,
+                            c.radius, pixelSize
                         );
                     });
                     isColorOverlayVisible = true;
                 }
 
-                // Render hover cutout
                 if (lastMouseX !== -1 && lastMouseY !== -1) {
                     const relX = lastMouseX - sceneRect.left;
                     const relY = lastMouseY - sceneRect.top;
-
                     let hoverRadius = currentCutoutRadius;
                     if (activePlanetScene === 'redPlanet')    hoverRadius = minCutoutRadius;
                     else if (activePlanetScene === 'default') hoverRadius = originalCutoutRadius;
-
                     combinedPathData += generateJaggedCirclePath(
                         relX + clipPathOffsetX,
                         relY + clipPathOffsetY,
-                        hoverRadius,
-                        pixelSize
+                        hoverRadius, pixelSize
                     );
                     isColorOverlayVisible = true;
                 }
 
                 jaggedCirclePath.setAttribute('d', combinedPathData);
                 colorOverlayGif.style.opacity = isColorOverlayVisible ? 1 : 0;
-
                 animationFrameId = requestAnimationFrame(animateCutouts);
             }
 
@@ -427,7 +469,6 @@
                 lastMouseY = -1;
             }
 
-            // ── Scroll: resize cutout (yellow planet only) ──
             window.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 if (activePlanetScene === 'yellowPlanet') {
@@ -437,80 +478,90 @@
                 }
             }, { passive: false });
 
-            // ── Mouse events on scene and hitboxes ──
             sceneContainer.addEventListener('mousemove', handleHoverEffect);
             sceneContainer.addEventListener('mouseleave', resetClipPath);
 
             planetHitboxes.forEach(hitbox => {
-                hitbox.addEventListener('mousemove', handleHoverEffect);
-                hitbox.addEventListener('mouseleave', resetClipPath);
+                hitbox.addEventListener('mousemove',  (e) => { if (currentScene !== 'museum') return; handleHoverEffect(e); });
+                hitbox.addEventListener('mouseleave', (e) => { if (currentScene !== 'museum') return; resetClipPath(); });
                 hitbox.addEventListener('mouseenter', handlePlanetHoverEnter);
                 hitbox.addEventListener('mouseleave', handlePlanetHoverLeave);
             });
 
-            // ── Click: place permanent cutout on scene ──
             function handleSceneClick(e) {
-                const sceneRect = backgroundSceneGif.getBoundingClientRect();
-                const relX = e.clientX - sceneRect.left;
-                const relY = e.clientY - sceneRect.top;
-
-                if (e.clientX >= sceneRect.left && e.clientX <= sceneRect.right &&
-                    e.clientY >= sceneRect.top  && e.clientY <= sceneRect.bottom) {
-
+                const rect = activeBg().getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                    e.clientY >= rect.top  && e.clientY <= rect.bottom) {
                     let radius = currentCutoutRadius;
-                    if (activePlanetScene === 'redPlanet')  radius = minCutoutRadius;
+                    if (activePlanetScene === 'redPlanet')    radius = minCutoutRadius;
                     else if (activePlanetScene === 'default') radius = originalCutoutRadius;
-
                     permanentCutouts.push({ originalX: relX, originalY: relY, radius });
                 }
             }
 
-            // ── Planet 6 hitbox: toggle red planet scene ──
+            function hideAllPlanetHitboxes() {
+                planetHitboxes.forEach(h => h.style.pointerEvents = 'none');
+            }
+            function showAllPlanetHitboxes() {
+                planetHitboxes.forEach(h => h.style.pointerEvents = 'auto');
+            }
+
             document.getElementById('hitboxPlanet6').addEventListener('click', () => {
+                if (currentScene !== 'museum') return;
                 if (activePlanetScene === 'redPlanet') {
-                    colorOverlayGif.src    = defaultColorOverlaySrc;
-                    backgroundSceneGif.src = defaultBackgroundSceneSrc;
-                    activePlanetScene      = 'default';
-                    currentCutoutRadius    = originalCutoutRadius;
-                    sceneContainer.removeEventListener('click', handleSceneClick);
+                    crossFadeBg(defaultBackgroundSceneSrc, defaultColorOverlaySrc, () => {
+                        activePlanetScene   = 'default';
+                        currentCutoutRadius = originalCutoutRadius;
+                        sceneContainer.removeEventListener('click', handleSceneClick);
+                        showAllPlanetHitboxes();
+                        body.style.backgroundColor = '#1E1E1E';
+                    });
                 } else {
-                    colorOverlayGif.src    = altColorOverlaySrc;
-                    backgroundSceneGif.src = redPlanetSceneSrc;
-                    activePlanetScene      = 'redPlanet';
-                    sceneContainer.addEventListener('click', handleSceneClick);
+                    hideAllPlanetHitboxes();
+                    document.getElementById('hitboxPlanet6').style.pointerEvents = 'auto';
+                    body.style.backgroundColor = '#000000';
+                    crossFadeBg(redPlanetSceneSrc, altColorOverlaySrc, () => {
+                        activePlanetScene = 'redPlanet';
+                        sceneContainer.addEventListener('click', handleSceneClick);
+                    });
                 }
                 permanentCutouts = [];
                 resetClipPath();
             });
 
-            // ── Planet 3 hitbox: toggle yellow planet scene ──
             document.getElementById('hitboxPlanet3').addEventListener('click', () => {
+                if (currentScene !== 'museum') return;
                 if (activePlanetScene === 'yellowPlanet') {
-                    colorOverlayGif.src    = defaultColorOverlaySrc;
-                    backgroundSceneGif.src = defaultBackgroundSceneSrc;
-                    activePlanetScene      = 'default';
-                    currentCutoutRadius    = originalCutoutRadius;
-                    sceneContainer.removeEventListener('click', handleSceneClick);
+                    crossFadeBg(defaultBackgroundSceneSrc, defaultColorOverlaySrc, () => {
+                        activePlanetScene   = 'default';
+                        currentCutoutRadius = originalCutoutRadius;
+                        sceneContainer.removeEventListener('click', handleSceneClick);
+                        showAllPlanetHitboxes();
+                        body.style.backgroundColor = '#1E1E1E';
+                    });
                 } else {
-                    colorOverlayGif.src    = altColorOverlaySrc;
-                    backgroundSceneGif.src = yellowPlanetSceneSrc;
-                    activePlanetScene      = 'yellowPlanet';
-                    sceneContainer.addEventListener('click', handleSceneClick);
+                    hideAllPlanetHitboxes();
+                    document.getElementById('hitboxPlanet3').style.pointerEvents = 'auto';
+                    body.style.backgroundColor = '#000000';
+                    crossFadeBg(yellowPlanetSceneSrc, altColorOverlaySrc, () => {
+                        activePlanetScene = 'yellowPlanet';
+                        sceneContainer.addEventListener('click', handleSceneClick);
+                    });
                 }
                 permanentCutouts = [];
                 resetClipPath();
             });
 
-            // ── Right-click: cycle hue tint when color overlay is visible ──
             sceneContainer.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 if (colorOverlayGif.style.opacity == 1) {
-                    currentHueRotation  = (currentHueRotation + hueStep) % 360;
-                    body.style.filter   = `hue-rotate(${currentHueRotation}deg)`;
+                    currentHueRotation = (currentHueRotation + hueStep) % 360;
+                    body.style.filter  = `hue-rotate(${currentHueRotation}deg)`;
                 }
             });
 
-            // ── Init ──
             resetClipPath();
             animateCutouts();
 
@@ -520,30 +571,26 @@
                 animateCutouts();
             });
 
-            // ── Starfield canvas on loading screen ──
+            // ── Starfield ──
             (function initStarfield() {
                 const canvas = document.getElementById('starfieldCanvas');
                 const ctx    = canvas.getContext('2d');
-                let stars    = [];
-                let sfRafId  = null;
+                let stars = [], sfRafId = null;
 
-                function resize() {
-                    canvas.width  = canvas.offsetWidth;
-                    canvas.height = canvas.offsetHeight;
-                }
+                function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
 
                 function spawnStars(count) {
                     stars = [];
                     for (let i = 0; i < count; i++) {
                         stars.push({
-                            x:        Math.random() * canvas.width,
-                            y:        Math.random() * canvas.height,
-                            w:        (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,
-                            h:        ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5),
-                            opacity:  Math.random(),
-                            speed:    0.005 + Math.random() * 0.015,
-                            phase:    Math.random() * Math.PI * 2,
-                            drift:    (Math.random() - 0.5) * 0.08,
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            w: (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,
+                            h: ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5),
+                            opacity: Math.random(),
+                            speed:   0.005 + Math.random() * 0.015,
+                            phase:   Math.random() * Math.PI * 2,
+                            drift:   (Math.random() - 0.5) * 0.08,
                         });
                     }
                 }
@@ -551,40 +598,25 @@
                 function drawStars(ts) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     const t = ts * 0.001;
-
                     stars.forEach(s => {
                         const twinkle = s.tiny
                             ? 0.35 + 0.35 * Math.sin(t * s.speed * 60 + s.phase)
                             : 0.75 + 0.25 * Math.sin(t * s.speed * 60 + s.phase);
                         ctx.globalAlpha = twinkle;
-
                         ctx.fillStyle = Math.random() < 0.02 ? '#a8d8ff' : '#ffffff';
-
                         ctx.fillRect(Math.round(s.x), Math.round(s.y), s.w, s.h);
-
                         s.x += s.drift;
                         if (s.x < 0)            s.x = canvas.width;
                         if (s.x > canvas.width) s.x = 0;
                     });
-
                     ctx.globalAlpha = 1;
                     sfRafId = requestAnimationFrame(drawStars);
                 }
 
-                function startStarfield() {
-                    resize();
-                    spawnStars(420);
-                    sfRafId = requestAnimationFrame(drawStars);
-                }
+                function startStarfield() { resize(); spawnStars(420); sfRafId = requestAnimationFrame(drawStars); }
+                function stopStarfield()  { if (sfRafId) cancelAnimationFrame(sfRafId); }
 
-                function stopStarfield() {
-                    if (sfRafId) cancelAnimationFrame(sfRafId);
-                }
-
-                window.addEventListener('resize', () => {
-                    resize();
-                    spawnStars(420);
-                });
+                window.addEventListener('resize', () => { resize(); spawnStars(420); });
 
                 const sfObserver = new MutationObserver(() => {
                     if (loadingScreenOverlay.style.opacity === '1') startStarfield();
@@ -592,9 +624,7 @@
                 });
                 sfObserver.observe(loadingScreenOverlay, { attributes: true, attributeFilter: ['style'] });
             })();
-            // ── End starfield ──
 
-            // Fallback for broken GIF loads
             document.querySelectorAll('.full-screen-gif').forEach(gif => {
                 gif.onerror = () => {
                     console.error('Failed to load GIF:', gif.src);
