@@ -134,6 +134,67 @@
             z-index: 4;
             cursor: pointer;
         }
+
+        #backButton {
+            position: fixed;
+            bottom: 32px;
+            left: 32px;
+            z-index: 10;
+            display: none;
+            padding: 10px 22px;
+            font-family: 'Courier New', monospace;
+            font-size: 15px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #fff;
+            background: transparent;
+            border: 2px solid #ff2df7;
+            border-radius: 4px;
+            cursor: pointer;
+            text-shadow:
+                0 0 6px #ff2df7,
+                0 0 14px #ff2df7,
+                0 0 28px #ff2df7;
+            box-shadow:
+                0 0 8px #ff2df7,
+                0 0 20px #ff2df7,
+                inset 0 0 8px rgba(255, 45, 247, 0.15);
+            animation: neonPulse 1.8s ease-in-out infinite;
+            transition: opacity 0.4s ease, transform 0.2s ease;
+        }
+
+        #backButton:hover {
+            color: #ff2df7;
+            background: rgba(255, 45, 247, 0.08);
+            transform: scale(1.05);
+            box-shadow:
+                0 0 12px #ff2df7,
+                0 0 32px #ff2df7,
+                0 0 56px #ff2df7,
+                inset 0 0 12px rgba(255, 45, 247, 0.25);
+        }
+
+        @keyframes neonPulse {
+            0%, 100% {
+                box-shadow:
+                    0 0 8px #ff2df7,
+                    0 0 20px #ff2df7,
+                    inset 0 0 8px rgba(255, 45, 247, 0.15);
+                border-color: #ff2df7;
+            }
+            50% {
+                box-shadow:
+                    0 0 14px #00f0ff,
+                    0 0 36px #00f0ff,
+                    inset 0 0 12px rgba(0, 240, 255, 0.2);
+                border-color: #00f0ff;
+                text-shadow:
+                    0 0 6px #00f0ff,
+                    0 0 14px #00f0ff,
+                    0 0 28px #00f0ff;
+            }
+        }
     </style>
 </head>
 <body class="bg-[#14131F]">
@@ -165,6 +226,8 @@
         </defs>
     </svg>
 
+    <button id="backButton">&#8592; Back</button>
+
     <div id="hitboxHomeTransition"></div>
     <div id="hitboxRecordStore"></div>
     <div id="hitboxShop"></div>
@@ -191,6 +254,8 @@
             const jaggedCirclePath  = document.getElementById('jaggedCirclePath');
             const body              = document.body;
             const planetHitboxes    = document.querySelectorAll('.planet-hitbox');
+
+            const backButton = document.getElementById('backButton');
 
             let activeBgLayer = 'A';
             let currentScene  = 'home'; // 'home' | 'museum' | 'recordStore' | 'shop'
@@ -224,7 +289,50 @@
                 simpleSceneGif.src = gifSrc;
                 simpleSceneGif.style.opacity = '1';
                 simpleSceneGif.style.pointerEvents = 'auto';
+                // Raise color overlay above simple gif so the cutout cursor is visible
+                colorOverlayGif.src = gifSrc;
+                colorOverlayGif.style.zIndex = '4';
+                colorOverlayGif.style.filter = 'brightness(1.8) saturate(1.6) contrast(1.1)';
+                setBackButtonVisible(true);
             }
+
+            function setBackButtonVisible(visible) {
+                backButton.style.display = visible ? 'block' : 'none';
+            }
+
+            function returnHome() {
+                if (currentScene === 'museum') {
+                    // Hide planet hitboxes, restore home hitboxes
+                    planetHitboxes.forEach(h => { h.style.display = 'none'; h.style.pointerEvents = 'none'; });
+                    document.getElementById('hitboxHomeTransition').style.display = '';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents = 'auto';
+                    document.getElementById('hitboxShop').style.pointerEvents        = 'auto';
+                    body.style.backgroundColor = '#14131F';
+                    activePlanetScene   = 'default';
+                    currentCutoutRadius = originalCutoutRadius;
+                    permanentCutouts    = [];
+                    resetClipPath();
+                    sceneContainer.removeEventListener('click', handleSceneClick);
+                    crossFadeBg('./homedark.gif', './homelight.gif', null);
+                    colorOverlayGif.src = './homelight.gif';
+                } else if (currentScene === 'recordStore' || currentScene === 'shop') {
+                    // Fade out the simple scene gif and re-enable home hitboxes
+                    simpleSceneGif.style.opacity      = '0';
+                    simpleSceneGif.style.pointerEvents = 'none';
+                    setTimeout(() => { simpleSceneGif.src = ''; }, 700);
+                    document.getElementById('hitboxHomeTransition').style.pointerEvents = 'auto';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents    = 'auto';
+                    document.getElementById('hitboxShop').style.pointerEvents           = 'auto';
+                    // Restore color overlay to home state
+                    colorOverlayGif.style.zIndex  = '1';
+                    colorOverlayGif.style.filter  = '';
+                    colorOverlayGif.src = './homelight.gif';
+                }
+                currentScene = 'home';
+                setBackButtonVisible(false);
+            }
+
+            backButton.addEventListener('click', returnHome);
 
             // ── Audio ──
             const loadingScreenLoopAudio = new Audio('./room-welcome-sound.mp3');
@@ -287,6 +395,7 @@
                     document.getElementById('hitboxRecordStore').style.pointerEvents = 'none';
                     document.getElementById('hitboxShop').style.pointerEvents        = 'none';
                 });
+                setBackButtonVisible(true);
             }
 
             // ── home → recordStore ──
