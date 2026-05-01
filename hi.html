@@ -390,7 +390,7 @@
                 body.style.backgroundColor = '#1E1E1E';
 
                 crossFadeBg('./backround-museum.gif', './color-backround.gif', () => {
-                    planetHitboxes.forEach(h => h.style.display = '');
+                    planetHitboxes.forEach(h => { h.style.display = ''; h.style.pointerEvents = 'auto'; });
                     document.getElementById('hitboxHomeTransition').style.display = 'none';
                     document.getElementById('hitboxRecordStore').style.pointerEvents = 'none';
                     document.getElementById('hitboxShop').style.pointerEvents        = 'none';
