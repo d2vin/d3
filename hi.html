@@ -22,8 +22,9 @@
 
         .scene-container {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             cursor: none;
             width: 1137px;
             height: 796px;
@@ -216,6 +217,16 @@
         <!-- Two bg layers – cross-fade by swapping opacities -->
         <img id="backgroundSceneGifA" src="./homedark.gif"  alt="Background Scene A" class="full-screen-gif">
         <img id="backgroundSceneGifB" src=""                alt="Background Scene B" class="full-screen-gif">
+        <div id="hitboxHomeTransition"></div>
+        <div id="hitboxRecordStore"></div>
+        <div id="hitboxShop"></div>
+        <div id="hitboxPlanet2" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet3" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet4" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet5" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet6" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet7" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet8" class="planet-hitbox" style="display:none;"></div>
     </div>
 
     <svg id="clipPathSvg" width="0" height="0">
@@ -227,17 +238,6 @@
     </svg>
 
     <button id="backButton">&#8592; Back</button>
-
-    <div id="hitboxHomeTransition"></div>
-    <div id="hitboxRecordStore"></div>
-    <div id="hitboxShop"></div>
-    <div id="hitboxPlanet2" class="planet-hitbox" style="display:none;"></div>
-    <div id="hitboxPlanet3" class="planet-hitbox" style="display:none;"></div>
-    <div id="hitboxPlanet4" class="planet-hitbox" style="display:none;"></div>
-    <div id="hitboxPlanet5" class="planet-hitbox" style="display:none;"></div>
-    <div id="hitboxPlanet6" class="planet-hitbox" style="display:none;"></div>
-    <div id="hitboxPlanet7" class="planet-hitbox" style="display:none;"></div>
-    <div id="hitboxPlanet8" class="planet-hitbox" style="display:none;"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
