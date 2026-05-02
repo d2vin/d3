@@ -66,7 +66,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             z-index: 3;
             opacity: 0;
             pointer-events: none;
@@ -142,59 +142,47 @@
             left: 32px;
             z-index: 10;
             display: none;
-            padding: 10px 22px;
+            padding: 8px 18px;
             font-family: 'Courier New', monospace;
-            font-size: 15px;
-            font-weight: bold;
-            letter-spacing: 2px;
+            font-size: 12px;
+            font-weight: normal;
+            letter-spacing: 1px;
             text-transform: uppercase;
-            color: #fff;
+            color: rgba(255, 45, 247, 0.6);
             background: transparent;
-            border: 2px solid #ff2df7;
+            border: 1px solid rgba(255, 45, 247, 0.35);
             border-radius: 4px;
             cursor: pointer;
-            text-shadow:
-                0 0 6px #ff2df7,
-                0 0 14px #ff2df7,
-                0 0 28px #ff2df7;
+            text-shadow: 0 0 6px rgba(255, 45, 247, 0.4);
             box-shadow:
-                0 0 8px #ff2df7,
-                0 0 20px #ff2df7,
-                inset 0 0 8px rgba(255, 45, 247, 0.15);
-            animation: neonPulse 1.8s ease-in-out infinite;
+                0 0 4px rgba(255, 45, 247, 0.2),
+                inset 0 0 4px rgba(255, 45, 247, 0.05);
+            animation: neonPulse 2.4s ease-in-out infinite;
             transition: opacity 0.4s ease, transform 0.2s ease;
         }
 
         #backButton:hover {
-            color: #ff2df7;
-            background: rgba(255, 45, 247, 0.08);
-            transform: scale(1.05);
+            color: rgba(255, 45, 247, 0.9);
+            border-color: rgba(255, 45, 247, 0.6);
+            text-shadow: 0 0 8px rgba(255, 45, 247, 0.6);
             box-shadow:
-                0 0 12px #ff2df7,
-                0 0 32px #ff2df7,
-                0 0 56px #ff2df7,
-                inset 0 0 12px rgba(255, 45, 247, 0.25);
+                0 0 8px rgba(255, 45, 247, 0.35),
+                inset 0 0 6px rgba(255, 45, 247, 0.1);
         }
 
         @keyframes neonPulse {
             0%, 100% {
                 box-shadow:
-                    0 0 8px #ff2df7,
-                    0 0 20px #ff2df7,
-                    inset 0 0 8px rgba(255, 45, 247, 0.15);
-                border-color: #ff2df7;
+                    0 0 4px rgba(255, 45, 247, 0.2),
+                    inset 0 0 4px rgba(255, 45, 247, 0.05);
+                border-color: rgba(255, 45, 247, 0.35);
             }
             50% {
                 box-shadow:
-                    0 0 14px #00f0ff,
-                    0 0 36px #00f0ff,
-                    inset 0 0 12px rgba(0, 240, 255, 0.2);
-                border-color: #00f0ff;
-                text-shadow:
-                    0 0 6px #00f0ff,
-                    0 0 14px #00f0ff,
-                    0 0 28px #00f0ff;
-            }
+                    0 0 6px rgba(0, 240, 255, 0.2),
+                    inset 0 0 4px rgba(0, 240, 255, 0.05);
+                border-color: rgba(0, 240, 255, 0.35);
+                text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
         }
     </style>
 </head>
@@ -285,6 +273,9 @@
                 document.getElementById('hitboxShop').style.pointerEvents           = 'none';
                 // Reset mouse position so no stale cutout appears on entry
                 resetClipPath();
+                // Fade out background layers so they don't show through letterbox areas
+                bgGifA.style.opacity = '0';
+                bgGifB.style.opacity = '0';
                 // Load and fade in the simple gif on top
                 simpleSceneGif.src = gifSrc;
                 simpleSceneGif.style.opacity = '1';
@@ -320,6 +311,8 @@
                     simpleSceneGif.style.opacity      = '0';
                     simpleSceneGif.style.pointerEvents = 'none';
                     setTimeout(() => { simpleSceneGif.src = ''; }, 700);
+                    // Restore background layers
+                    activeBg().style.opacity = '1';
                     document.getElementById('hitboxHomeTransition').style.pointerEvents = 'auto';
                     document.getElementById('hitboxRecordStore').style.pointerEvents    = 'auto';
                     document.getElementById('hitboxShop').style.pointerEvents           = 'auto';
