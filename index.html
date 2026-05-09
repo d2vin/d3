@@ -1,300 +1,739 @@
-<style>
-* {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background-color: #000;
-}
-canvas {
-    width: 100%;
-    height: 100vh;
-    display: block;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-.ui-menu {
-    position: absolute;
-    color: #fff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 20px;
-    z-index: 100;
-    text-shadow: 0 0 6px rgba(0, 255, 255, 0.6);
-    pointer-events: none;
-}
-
-.ui-menu .menu-title {
-    font-size: 1.2rem;
-    font-weight: bold;
-    margin-bottom: 10px;
-    color: #0ff;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-}
-
-.ui-menu .menu-item {
-    font-size: 0.95rem;
-    margin: 4px 0;
-    color: #aaa;
-    transition: all 0.3s ease;
-    pointer-events: auto;
-    cursor: pointer;
-}
-
-.ui-menu .menu-item:hover {
-    color: #fff;
-    text-shadow: 0 0 8px #ff69b4;
-    transform: translateX(3px);
-}
-
-.top-left {
-    top: 20px;
-    left: 20px;
-    text-align: left;
-}
-
-.top-right {
-    top: 20px;
-    right: 20px;
-    text-align: right;
-}
-
-</style>
-
-<script type="importmap">
-{
-    "imports": {
-        "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
-        "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.162.0/examples/jsm/controls/OrbitControls.js"
-    }
-}
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000000, 0.01);
-
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ 
-    antialias: true,
-    powerPreference: "high-performance"
-});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x000000);
-renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.rotateSpeed = 0.5;
-controls.minDistance = 10;
-controls.maxDistance = 30;
-
-camera.position.z = 15;
-camera.position.y = 5;
-controls.target.set(0, 0, 0);
-controls.update();
-
-const pointMaterialShader = {
-    vertexShader: `
-        attribute float size;
-        varying vec3 vColor;
-        varying float vDistance;
-        uniform float time;
-        
-        void main() {
-            vColor = color;
-            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-            vDistance = -mvPosition.z;
-            float pulse = sin(time * 2.0 + length(position)) * 0.15 + 1.0;
-            vec3 pos = position;
-            pos.x += sin(time + position.z * 0.5) * 0.05;
-            pos.y += cos(time + position.x * 0.5) * 0.05;
-            pos.z += sin(time + position.y * 0.5) * 0.05;
-            mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            gl_PointSize = size * (300.0 / -mvPosition.z) * pulse;
-            gl_Position = projectionMatrix * mvPosition;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIF Overlay - Fixed Size, Fixed Position, No Bars (Final)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
         }
-    `,
-    fragmentShader: `
-        varying vec3 vColor;
-        varying float vDistance;
-        uniform float time;
-        
-        void main() {
-            vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-            float r = dot(cxy, cxy);
-            if (r > 1.0) discard;
-            float glow = exp(-r * 2.5);
-            float outerGlow = exp(-r * 1.5) * 0.3;
-            vec3 finalColor = vColor * (1.2 + sin(time * 0.5) * 0.1);
-            finalColor += vec3(0.2, 0.4, 0.6) * outerGlow;
-            float distanceFade = 1.0 - smoothstep(0.0, 50.0, vDistance);
-            float intensity = mix(0.7, 1.0, distanceFade);
-            gl_FragColor = vec4(finalColor * intensity, (glow + outerGlow) * distanceFade);
-        }
-    `
-};
 
-function createSpiralSphere(radius, particleCount, colors) {
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const particleColors = [];
-    const sizes = [];
-    
-    for (let i = 0; i < particleCount; i++) {
-        const phi = Math.acos(-1 + (2 * i) / particleCount);
-        const theta = Math.sqrt(particleCount * Math.PI) * phi;
-        const x = radius * Math.sin(phi) * Math.cos(theta);
-        const y = radius * Math.sin(phi) * Math.sin(theta);
-        const z = radius * Math.cos(phi);
-        positions.push(x, y, z);
-        const colorPos = i / particleCount;
-        const color1 = colors[Math.floor(colorPos * (colors.length - 1))];
-        const color2 = colors[Math.ceil(colorPos * (colors.length - 1))];
-        const mixRatio = (colorPos * (colors.length - 1)) % 1;
-        const finalColor = new THREE.Color().lerpColors(color1, color2, mixRatio);
-        particleColors.push(finalColor.r, finalColor.g, finalColor.b);
-        sizes.push(Math.random() * 0.15 + 0.08);
-    }
-    
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(particleColors, 3));
-    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-    
-    const material = new THREE.ShaderMaterial({
-        uniforms: {
-            time: { value: 0 }
-        },
-        vertexShader: pointMaterialShader.vertexShader,
-        fragmentShader: pointMaterialShader.fragmentShader,
-        vertexColors: true,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
-    });
-    
-    return new THREE.Points(geometry, material);
-}
-
-function createOrbitRings(radius, count, thickness) {
-    const group = new THREE.Group();
-    
-    for (let i = 0; i < count; i++) {
-        const ringGeometry = new THREE.BufferGeometry();
-        const positions = [];
-        const colors = [];
-        const sizes = [];
-        const particleCount = 3000;
-        
-        for (let j = 0; j < particleCount; j++) {
-            const angle = (j / particleCount) * Math.PI * 2;
-            const radiusVariation = radius + (Math.random() - 0.5) * thickness;
-            const x = Math.cos(angle) * radiusVariation;
-            const y = (Math.random() - 0.5) * thickness;
-            const z = Math.sin(angle) * radiusVariation;
-            positions.push(x, y, z);
-            const hue = (i / count) * 0.7 + (j / particleCount) * 0.3;
-            const color = new THREE.Color().setHSL(hue, 1, 0.6);
-            color.multiplyScalar(1.2);
-            colors.push(color.r, color.g, color.b);
-            sizes.push(Math.random() * 0.12 + 0.06);
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #14131F;
+            position: relative;
+            transition: filter 0.5s ease-in-out, background-color 0.7s ease-in-out;
         }
-        
-        ringGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        ringGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        ringGeometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-        
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0 }
-            },
-            vertexShader: pointMaterialShader.vertexShader,
-            fragmentShader: pointMaterialShader.fragmentShader,
-            vertexColors: true,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
+
+        .scene-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: none;
+            width: 1137px;
+            height: 796px;
+            overflow: hidden;
+        }
+
+        .full-screen-gif {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #colorOverlayGif {
+            z-index: 1;
+            pointer-events: none;
+            clip-path: url(#clipJaggedCircle);
+            -webkit-clip-path: url(#clipJaggedCircle);
+            transition: opacity 0.2s ease-out;
+            opacity: 0;
+            image-rendering: pixelated;
+        }
+
+        #backgroundSceneGifA,
+        #backgroundSceneGifB {
+            z-index: 0;
+            image-rendering: pixelated;
+            transition: opacity 0.7s ease-in-out;
+        }
+        #backgroundSceneGifA { opacity: 1; }
+        #backgroundSceneGifB { opacity: 0; }
+
+        /* Simple overlay for record store & shop — sits above bg layers, no clip-path */
+        #simpleSceneGif {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 3;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.7s ease-in-out;
+            image-rendering: pixelated;
+        }
+
+        #clipPathSvg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .planet-hitbox {
+            position: absolute;
+            border-radius: 50%;
+            background-color: transparent;
+            z-index: 4;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        #hitboxPlanet2 { width:80px;  height:80px;  left:660px;  top:135px; transform:translate(-50%,-50%); }
+        #hitboxPlanet3 { width:60px;  height:60px;  left:470px;  top:130px; transform:translate(-50%,-50%); }
+        #hitboxPlanet4 { width:180px; height:180px; left:240px;  top:200px; transform:translate(-50%,-50%); }
+        #hitboxPlanet5 { width:60px;  height:60px;  left:480px;  top:280px; transform:translate(-50%,-50%); }
+        #hitboxPlanet6 { width:80px;  height:80px;  left:660px;  top:270px; transform:translate(-50%,-50%); }
+        #hitboxPlanet7 { width:60px;  height:60px;  left:820px;  top:240px; transform:translate(-50%,-50%); }
+        #hitboxPlanet8 { width:180px; height:180px; left:1020px; top:200px; transform:translate(-50%,-50%); }
+
+        #hitboxHomeTransition {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 500px;
+            top: 500px;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
+        }
+
+        /* Record Store hitbox — left side of home scene */
+        #hitboxRecordStore {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 800px;
+            top: 450px;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
+        }
+
+        /* Shop hitbox — right side of home scene */
+        #hitboxShop {
+            position: absolute;
+            width: 120px;
+            height: 200px;
+            left: 650px;
+            top: 475px;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            cursor: pointer;
+        }
+
+        #backButton {
+            position: fixed;
+            bottom: 32px;
+            left: 32px;
+            z-index: 10;
+            display: none;
+            padding: 8px 18px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: normal;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255, 45, 247, 0.6);
+            background: transparent;
+            border: 1px solid rgba(255, 45, 247, 0.35);
+            border-radius: 4px;
+            cursor: pointer;
+            text-shadow: 0 0 6px rgba(255, 45, 247, 0.4);
+            box-shadow:
+                0 0 4px rgba(255, 45, 247, 0.2),
+                inset 0 0 4px rgba(255, 45, 247, 0.05);
+            animation: neonPulse 2.4s ease-in-out infinite;
+            transition: opacity 0.4s ease, transform 0.2s ease;
+        }
+
+        #backButton:hover {
+            color: rgba(255, 45, 247, 0.9);
+            border-color: rgba(255, 45, 247, 0.6);
+            text-shadow: 0 0 8px rgba(255, 45, 247, 0.6);
+            box-shadow:
+                0 0 8px rgba(255, 45, 247, 0.35),
+                inset 0 0 6px rgba(255, 45, 247, 0.1);
+        }
+
+        @keyframes neonPulse {
+            0%, 100% {
+                box-shadow:
+                    0 0 4px rgba(255, 45, 247, 0.2),
+                    inset 0 0 4px rgba(255, 45, 247, 0.05);
+                border-color: rgba(255, 45, 247, 0.35);
+            }
+            50% {
+                box-shadow:
+                    0 0 6px rgba(0, 240, 255, 0.2),
+                    inset 0 0 4px rgba(0, 240, 255, 0.05);
+                border-color: rgba(0, 240, 255, 0.35);
+                text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-[#14131F]">
+
+    <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 cursor-pointer" style="transition: opacity 1s ease;">
+        <p class="text-white text-2xl">Please turn on your sound and press "Enter" or click to start</p>
+    </div>
+
+    <div id="loadingScreenOverlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center z-50 opacity-0 transition-opacity duration-1000" style="background:#000;">
+        <canvas id="starfieldCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+        <img id="loadingScreenGif" src="./LoadingScreen.gif" style="position:relative;z-index:1;">
+    </div>
+
+    <div id="sceneContainer" class="scene-container opacity-0 transition-opacity duration-1000">
+        <!-- Simple full-screen gif for record store / shop (no cutout) -->
+        <img id="simpleSceneGif" src="" alt="Simple Scene GIF" class="full-screen-gif">
+        <!-- Color overlay (clip-pathed) -->
+        <img id="colorOverlayGif"     src="./homelight.gif" alt="Color Overlay GIF" class="full-screen-gif">
+        <!-- Two bg layers – cross-fade by swapping opacities -->
+        <img id="backgroundSceneGifA" src="./homedark.gif"  alt="Background Scene A" class="full-screen-gif">
+        <img id="backgroundSceneGifB" src=""                alt="Background Scene B" class="full-screen-gif">
+        <div id="hitboxHomeTransition"></div>
+        <div id="hitboxRecordStore"></div>
+        <div id="hitboxShop"></div>
+        <div id="hitboxPlanet2" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet3" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet4" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet5" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet6" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet7" class="planet-hitbox" style="display:none;"></div>
+        <div id="hitboxPlanet8" class="planet-hitbox" style="display:none;"></div>
+    </div>
+
+    <svg id="clipPathSvg" width="0" height="0">
+        <defs>
+            <clipPath id="clipJaggedCircle">
+                <path id="jaggedCirclePath" d="M0,0"></path>
+            </clipPath>
+        </defs>
+    </svg>
+
+    <button id="backButton">&#8592; Back</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const soundPromptOverlay   = document.getElementById('soundPromptOverlay');
+            const loadingScreenOverlay = document.getElementById('loadingScreenOverlay');
+            const loadingScreenGif     = document.getElementById('loadingScreenGif');
+            const sceneContainer       = document.getElementById('sceneContainer');
+
+            const colorOverlayGif   = document.getElementById('colorOverlayGif');
+            const bgGifA            = document.getElementById('backgroundSceneGifA');
+            const bgGifB            = document.getElementById('backgroundSceneGifB');
+            const simpleSceneGif    = document.getElementById('simpleSceneGif');
+            const jaggedCirclePath  = document.getElementById('jaggedCirclePath');
+            const body              = document.body;
+            const planetHitboxes    = document.querySelectorAll('.planet-hitbox');
+
+            const backButton = document.getElementById('backButton');
+
+            let activeBgLayer = 'A';
+            let currentScene  = 'home'; // 'home' | 'museum' | 'recordStore' | 'shop'
+
+            const FADE_MS = 700;
+
+            function activeBg()   { return activeBgLayer === 'A' ? bgGifA : bgGifB; }
+            function inactiveBg() { return activeBgLayer === 'A' ? bgGifB : bgGifA; }
+
+            function crossFadeBg(newBgSrc, newColorSrc, onComplete) {
+                const incoming = inactiveBg();
+                const outgoing = activeBg();
+                incoming.src = newBgSrc;
+                incoming.style.opacity = '1';
+                outgoing.style.opacity = '0';
+                activeBgLayer = activeBgLayer === 'A' ? 'B' : 'A';
+                colorOverlayGif.src = newColorSrc;
+                if (onComplete) setTimeout(onComplete, FADE_MS);
+            }
+
+            // ── Show a simple full-screen gif (with cutout on top), hiding bg layers ──
+            function enterSimpleScene(gifSrc, sceneName) {
+                currentScene = sceneName;
+                // Disable home hitboxes while in simple scene
+                document.getElementById('hitboxHomeTransition').style.pointerEvents = 'none';
+                document.getElementById('hitboxRecordStore').style.pointerEvents    = 'none';
+                document.getElementById('hitboxShop').style.pointerEvents           = 'none';
+                // Reset mouse position so no stale cutout appears on entry
+                resetClipPath();
+                // Fade out background layers so they don't show through letterbox areas
+                bgGifA.style.opacity = '0';
+                bgGifB.style.opacity = '0';
+                // Load and fade in the simple gif on top
+                simpleSceneGif.src = gifSrc;
+                simpleSceneGif.style.opacity = '1';
+                simpleSceneGif.style.pointerEvents = 'auto';
+                // Raise color overlay above simple gif so the cutout cursor is visible
+                colorOverlayGif.src = gifSrc;
+                colorOverlayGif.style.zIndex = '4';
+                colorOverlayGif.style.filter = 'brightness(1.8) saturate(1.6) contrast(1.1)';
+                setBackButtonVisible(true);
+            }
+
+            function setBackButtonVisible(visible) {
+                backButton.style.display = visible ? 'block' : 'none';
+            }
+
+            function returnHome() {
+                if (currentScene === 'museum') {
+                    // Hide planet hitboxes, restore home hitboxes
+                    planetHitboxes.forEach(h => { h.style.display = 'none'; h.style.pointerEvents = 'none'; });
+                    document.getElementById('hitboxHomeTransition').style.display = '';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents = 'auto';
+                    document.getElementById('hitboxShop').style.pointerEvents        = 'auto';
+                    body.style.backgroundColor = '#14131F';
+                    activePlanetScene   = 'default';
+                    currentCutoutRadius = originalCutoutRadius;
+                    permanentCutouts    = [];
+                    resetClipPath();
+                    sceneContainer.removeEventListener('click', handleSceneClick);
+                    crossFadeBg('./homedark.gif', './homelight.gif', null);
+                    colorOverlayGif.src = './homelight.gif';
+                } else if (currentScene === 'recordStore' || currentScene === 'shop') {
+                    // Fade out the simple scene gif and re-enable home hitboxes
+                    simpleSceneGif.style.opacity      = '0';
+                    simpleSceneGif.style.pointerEvents = 'none';
+                    setTimeout(() => { simpleSceneGif.src = ''; }, 700);
+                    // Restore background layers
+                    activeBg().style.opacity = '1';
+                    document.getElementById('hitboxHomeTransition').style.pointerEvents = 'auto';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents    = 'auto';
+                    document.getElementById('hitboxShop').style.pointerEvents           = 'auto';
+                    // Restore color overlay to home state
+                    colorOverlayGif.style.zIndex  = '1';
+                    colorOverlayGif.style.filter  = '';
+                    colorOverlayGif.src = './homelight.gif';
+                }
+                currentScene = 'home';
+                setBackButtonVisible(false);
+            }
+
+            backButton.addEventListener('click', returnHome);
+
+            // ── Audio ──
+            const loadingScreenLoopAudio = new Audio('./room-welcome-sound.mp3');
+            loadingScreenLoopAudio.preload = 'auto';
+            loadingScreenLoopAudio.loop = true;
+
+            const loadingCompleteAudio = new Audio('./room-welcome-sound1.mp3');
+            loadingCompleteAudio.preload = 'auto';
+
+            let hasStarted = false;
+
+            // ── Per-planet hover audio ──
+            const planetHoverSounds = {
+                'hitboxPlanet2': new Audio('./planet-2.mp3'),
+                'hitboxPlanet3': new Audio('./planet-3.mp3'),
+                'hitboxPlanet4': new Audio('./planet-4.mp3'),
+                'hitboxPlanet5': new Audio('./planet-5.mp3'),
+                'hitboxPlanet6': new Audio('./planet-6.mp3'),
+                'hitboxPlanet7': new Audio('./planet-7.mp3'),
+                'hitboxPlanet8': new Audio('./planet-8.mp3'),
+            };
+
+            const isPlanetSoundPlaying = {};
+            Object.keys(planetHoverSounds).forEach(id => {
+                planetHoverSounds[id].preload = 'auto';
+                isPlanetSoundPlaying[id] = false;
+            });
+
+            function handlePlanetHoverEnter(e) {
+                if (currentScene !== 'museum' || activeBg().style.opacity === '0') return;
+                const activeSrc = activeBg().src.split('/').pop();
+                if (activeSrc === 'backround-museum.gif') {
+                    const id = e.target.id;
+                    const sound = planetHoverSounds[id];
+                    if (sound && !isPlanetSoundPlaying[id]) {
+                        sound.currentTime = 0;
+                        sound.play().catch(err => console.error(`Planet sound failed (${id}):`, err));
+                        isPlanetSoundPlaying[id] = true;
+                    }
+                }
+            }
+
+            function handlePlanetHoverLeave(e) {
+                const id = e.target.id;
+                if (planetHoverSounds[id]) isPlanetSoundPlaying[id] = false;
+            }
+
+            // ── home → museum ──
+            function enterMuseumScene() {
+                currentScene        = 'museum';
+                activePlanetScene   = 'default';
+                currentCutoutRadius = originalCutoutRadius;
+                permanentCutouts    = [];
+                resetClipPath();
+                body.style.backgroundColor = '#1E1E1E';
+
+                crossFadeBg('./backround-museum.gif', './color-backround.gif', () => {
+                    planetHitboxes.forEach(h => { h.style.display = ''; h.style.pointerEvents = 'auto'; });
+                    document.getElementById('hitboxHomeTransition').style.display = 'none';
+                    document.getElementById('hitboxRecordStore').style.pointerEvents = 'none';
+                    document.getElementById('hitboxShop').style.pointerEvents        = 'none';
+                });
+                setBackButtonVisible(true);
+            }
+
+            // ── home → recordStore ──
+            document.getElementById('hitboxRecordStore').addEventListener('click', () => {
+                if (currentScene !== 'home') return;
+                enterSimpleScene('./recordStore.gif', 'recordStore');
+            });
+
+            // ── home → shop ──
+            document.getElementById('hitboxShop').addEventListener('click', () => {
+                if (currentScene !== 'home') return;
+                enterSimpleScene('./shop.gif', 'shop');
+            });
+
+            // ── Hover listeners for shop & record store hitboxes ──
+            document.getElementById('hitboxRecordStore').addEventListener('mousemove', handleHoverEffect);
+            document.getElementById('hitboxRecordStore').addEventListener('mouseleave', resetClipPath);
+            document.getElementById('hitboxShop').addEventListener('mousemove', handleHoverEffect);
+            document.getElementById('hitboxShop').addEventListener('mouseleave', resetClipPath);
+
+            // ── Step 1 → 2 ──
+            function showLoadingScreen() {
+                if (hasStarted) return;
+                hasStarted = true;
+                soundPromptOverlay.style.opacity = '0';
+                soundPromptOverlay.style.pointerEvents = 'none';
+                setTimeout(() => soundPromptOverlay.remove(), 1000);
+                loadingScreenOverlay.style.opacity = '1';
+                loadingScreenLoopAudio.play().catch(() => {});
+            }
+
+            // ── Step 2 → 3 ──
+            function showMainScene() {
+                if (!hasStarted) return;
+                loadingCompleteAudio.play().catch(() => {});
+                loadingScreenLoopAudio.pause();
+                loadingScreenLoopAudio.currentTime = 0;
+                loadingScreenOverlay.style.opacity = '0';
+                sceneContainer.style.opacity = '1';
+                document.removeEventListener('keydown', handleKeydown);
+                setTimeout(() => {
+                    loadingScreenOverlay.remove();
+                    sceneContainer.style.pointerEvents = 'auto';
+                }, 1000);
+            }
+
+            function handleKeydown(e) {
+                if (e.key === 'Enter' || e.keyCode === 13) showLoadingScreen();
+            }
+
+            function handleFirstInteraction(e) {
+                if (e.type === 'click' || e.key === 'Enter' || e.keyCode === 13) {
+                    showLoadingScreen();
+                    document.removeEventListener('click', handleFirstInteraction);
+                    document.removeEventListener('keydown', handleFirstInteraction);
+                }
+            }
+
+            document.addEventListener('click', handleFirstInteraction);
+            document.addEventListener('keydown', handleFirstInteraction);
+            loadingScreenGif.addEventListener('click', showMainScene);
+
+            const hitboxHomeTransition = document.getElementById('hitboxHomeTransition');
+            hitboxHomeTransition.addEventListener('click', enterMuseumScene);
+            hitboxHomeTransition.addEventListener('mousemove', handleHoverEffect);
+            hitboxHomeTransition.addEventListener('mouseleave', resetClipPath);
+
+            // ── Clip-path / cutout logic ──
+            let currentCutoutRadius    = 40;
+            const originalCutoutRadius = 40;
+            const minCutoutRadius      = 10;
+            const maxCutoutRadius      = 100;
+            const radiusStep           = 5;
+
+            const pixelSize           = 5;
+            const jitterOffsetRange   = 2;
+            const jiggleFrameInterval = 10;
+
+            let activePlanetScene = 'default';
+            let permanentCutouts  = [];
+
+            let clipPathOffsetX = 0;
+            let clipPathOffsetY = 0;
+            let frameCounter    = 0;
+
+            const defaultColorOverlaySrc    = './color-backround.gif';
+            const defaultBackgroundSceneSrc = './backround-museum.gif';
+            const altColorOverlaySrc        = './yellowbackground.gif';
+            const redPlanetSceneSrc         = './redplanet1.gif';
+            const yellowPlanetSceneSrc      = './yellowplanet1.gif';
+
+            let currentHueRotation = 0;
+            const hueStep          = 30;
+
+            let animationFrameId;
+            const numPoints = 64;
+
+            function generateJaggedCirclePath(cx, cy, radius, pixelGridSize) {
+                let pathData = '';
+                const angleIncrement = (Math.PI * 2) / numPoints;
+                let prevSnX = 0, prevSnY = 0;
+
+                for (let i = 0; i <= numPoints; i++) {
+                    const angle   = i * angleIncrement;
+                    const snappedX = Math.round((cx + radius * Math.cos(angle)) / pixelGridSize) * pixelGridSize;
+                    const snappedY = Math.round((cy + radius * Math.sin(angle)) / pixelGridSize) * pixelGridSize;
+
+                    if (i === 0) {
+                        pathData = `M${snappedX},${snappedY}`;
+                    } else {
+                        const dx = Math.abs(snappedX - prevSnX);
+                        const dy = Math.abs(snappedY - prevSnY);
+                        if (dx >= dy) pathData += `L${snappedX},${prevSnY} L${snappedX},${snappedY} `;
+                        else          pathData += `L${prevSnX},${snappedY} L${snappedX},${snappedY} `;
+                    }
+                    prevSnX = snappedX;
+                    prevSnY = snappedY;
+                }
+                return pathData + 'Z';
+            }
+
+            let lastMouseX = -1;
+            let lastMouseY = -1;
+
+            function handleHoverEffect(e) {
+                const rect = sceneContainer.getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                if (relX >= 0 && relX <= rect.width && relY >= 0 && relY <= rect.height) {
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                } else {
+                    resetClipPath();
+                }
+            }
+
+            function animateCutouts() {
+                const sceneRect = activeBg().getBoundingClientRect();
+                let combinedPathData = '';
+                let isColorOverlayVisible = false;
+
+                frameCounter++;
+                if (frameCounter % jiggleFrameInterval === 0) {
+                    clipPathOffsetX = Math.random() * 2 * jitterOffsetRange - jitterOffsetRange;
+                    clipPathOffsetY = Math.random() * 2 * jitterOffsetRange - jitterOffsetRange;
+                }
+
+                if (permanentCutouts.length > 0) {
+                    permanentCutouts.forEach(c => {
+                        combinedPathData += generateJaggedCirclePath(
+                            c.originalX + clipPathOffsetX,
+                            c.originalY + clipPathOffsetY,
+                            c.radius, pixelSize
+                        );
+                    });
+                    isColorOverlayVisible = true;
+                }
+
+                if (lastMouseX !== -1 && lastMouseY !== -1) {
+                    const relX = lastMouseX - sceneRect.left;
+                    const relY = lastMouseY - sceneRect.top;
+                    let hoverRadius = currentCutoutRadius;
+                    if (activePlanetScene === 'redPlanet')    hoverRadius = minCutoutRadius;
+                    else if (activePlanetScene === 'default') hoverRadius = originalCutoutRadius;
+                    combinedPathData += generateJaggedCirclePath(
+                        relX + clipPathOffsetX,
+                        relY + clipPathOffsetY,
+                        hoverRadius, pixelSize
+                    );
+                    isColorOverlayVisible = true;
+                }
+
+                jaggedCirclePath.setAttribute('d', combinedPathData);
+                colorOverlayGif.style.opacity = isColorOverlayVisible ? 1 : 0;
+                animationFrameId = requestAnimationFrame(animateCutouts);
+            }
+
+            function resetClipPath() {
+                lastMouseX = -1;
+                lastMouseY = -1;
+            }
+
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (activePlanetScene === 'yellowPlanet') {
+                    currentCutoutRadius = e.deltaY < 0
+                        ? Math.min(currentCutoutRadius + radiusStep, maxCutoutRadius)
+                        : Math.max(currentCutoutRadius - radiusStep, minCutoutRadius);
+                }
+            }, { passive: false });
+
+            sceneContainer.addEventListener('mousemove', handleHoverEffect);
+            sceneContainer.addEventListener('mouseleave', resetClipPath);
+
+            planetHitboxes.forEach(hitbox => {
+                hitbox.addEventListener('mousemove',  (e) => { if (currentScene !== 'museum') return; handleHoverEffect(e); });
+                hitbox.addEventListener('mouseleave', (e) => { if (currentScene !== 'museum') return; resetClipPath(); });
+                hitbox.addEventListener('mouseenter', handlePlanetHoverEnter);
+                hitbox.addEventListener('mouseleave', handlePlanetHoverLeave);
+            });
+
+            function handleSceneClick(e) {
+                const rect = activeBg().getBoundingClientRect();
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                    e.clientY >= rect.top  && e.clientY <= rect.bottom) {
+                    let radius = currentCutoutRadius;
+                    if (activePlanetScene === 'redPlanet')    radius = minCutoutRadius;
+                    else if (activePlanetScene === 'default') radius = originalCutoutRadius;
+                    permanentCutouts.push({ originalX: relX, originalY: relY, radius });
+                }
+            }
+
+            function hideAllPlanetHitboxes() {
+                planetHitboxes.forEach(h => h.style.pointerEvents = 'none');
+            }
+            function showAllPlanetHitboxes() {
+                planetHitboxes.forEach(h => h.style.pointerEvents = 'auto');
+            }
+
+            document.getElementById('hitboxPlanet6').addEventListener('click', () => {
+                if (currentScene !== 'museum') return;
+                if (activePlanetScene === 'redPlanet') {
+                    crossFadeBg(defaultBackgroundSceneSrc, defaultColorOverlaySrc, () => {
+                        activePlanetScene   = 'default';
+                        currentCutoutRadius = originalCutoutRadius;
+                        sceneContainer.removeEventListener('click', handleSceneClick);
+                        showAllPlanetHitboxes();
+                        body.style.backgroundColor = '#1E1E1E';
+                    });
+                } else {
+                    hideAllPlanetHitboxes();
+                    document.getElementById('hitboxPlanet6').style.pointerEvents = 'auto';
+                    body.style.backgroundColor = '#000000';
+                    crossFadeBg(redPlanetSceneSrc, altColorOverlaySrc, () => {
+                        activePlanetScene = 'redPlanet';
+                        sceneContainer.addEventListener('click', handleSceneClick);
+                    });
+                }
+                permanentCutouts = [];
+                resetClipPath();
+            });
+
+            document.getElementById('hitboxPlanet3').addEventListener('click', () => {
+                if (currentScene !== 'museum') return;
+                if (activePlanetScene === 'yellowPlanet') {
+                    crossFadeBg(defaultBackgroundSceneSrc, defaultColorOverlaySrc, () => {
+                        activePlanetScene   = 'default';
+                        currentCutoutRadius = originalCutoutRadius;
+                        sceneContainer.removeEventListener('click', handleSceneClick);
+                        showAllPlanetHitboxes();
+                        body.style.backgroundColor = '#1E1E1E';
+                    });
+                } else {
+                    hideAllPlanetHitboxes();
+                    document.getElementById('hitboxPlanet3').style.pointerEvents = 'auto';
+                    body.style.backgroundColor = '#000000';
+                    crossFadeBg(yellowPlanetSceneSrc, altColorOverlaySrc, () => {
+                        activePlanetScene = 'yellowPlanet';
+                        sceneContainer.addEventListener('click', handleSceneClick);
+                    });
+                }
+                permanentCutouts = [];
+                resetClipPath();
+            });
+
+            sceneContainer.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                if (colorOverlayGif.style.opacity == 1) {
+                    currentHueRotation = (currentHueRotation + hueStep) % 360;
+                    body.style.filter  = `hue-rotate(${currentHueRotation}deg)`;
+                }
+            });
+
+            resetClipPath();
+            animateCutouts();
+
+            window.addEventListener('resize', () => {
+                cancelAnimationFrame(animationFrameId);
+                resetClipPath();
+                animateCutouts();
+            });
+
+            // ── Starfield ──
+            (function initStarfield() {
+                const canvas = document.getElementById('starfieldCanvas');
+                const ctx    = canvas.getContext('2d');
+                let stars = [], sfRafId = null;
+
+                function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+
+                function spawnStars(count) {
+                    stars = [];
+                    for (let i = 0; i < count; i++) {
+                        stars.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            w: (Math.random() < 0.15 ? 2.6 : 1.3) * 1.3,
+                            h: ((Math.random() < 0.15 ? 2.6 : 1.3) * 1.3) * (2.5 + Math.random() * 1.5),
+                            opacity: Math.random(),
+                            speed:   0.005 + Math.random() * 0.015,
+                            phase:   Math.random() * Math.PI * 2,
+                            drift:   (Math.random() - 0.5) * 0.08,
+                        });
+                    }
+                }
+
+                function drawStars(ts) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    const t = ts * 0.001;
+                    stars.forEach(s => {
+                        const twinkle = s.tiny
+                            ? 0.35 + 0.35 * Math.sin(t * s.speed * 60 + s.phase)
+                            : 0.75 + 0.25 * Math.sin(t * s.speed * 60 + s.phase);
+                        ctx.globalAlpha = twinkle;
+                        ctx.fillStyle = Math.random() < 0.02 ? '#a8d8ff' : '#ffffff';
+                        ctx.fillRect(Math.round(s.x), Math.round(s.y), s.w, s.h);
+                        s.x += s.drift;
+                        if (s.x < 0)            s.x = canvas.width;
+                        if (s.x > canvas.width) s.x = 0;
+                    });
+                    ctx.globalAlpha = 1;
+                    sfRafId = requestAnimationFrame(drawStars);
+                }
+
+                function startStarfield() { resize(); spawnStars(420); sfRafId = requestAnimationFrame(drawStars); }
+                function stopStarfield()  { if (sfRafId) cancelAnimationFrame(sfRafId); }
+
+                window.addEventListener('resize', () => { resize(); spawnStars(420); });
+
+                const sfObserver = new MutationObserver(() => {
+                    if (loadingScreenOverlay.style.opacity === '1') startStarfield();
+                    if (loadingScreenOverlay.style.opacity === '0') stopStarfield();
+                });
+                sfObserver.observe(loadingScreenOverlay, { attributes: true, attributeFilter: ['style'] });
+            })();
+
+            document.querySelectorAll('.full-screen-gif').forEach(gif => {
+                gif.onerror = () => {
+                    console.error('Failed to load GIF:', gif.src);
+                    gif.src = 'https://placehold.co/1920x1080/000000/FFFFFF?text=GIF+Loading+Failed';
+                };
+            });
         });
-        
-        const ring = new THREE.Points(ringGeometry, material);
-        ring.rotation.x = Math.random() * Math.PI;
-        ring.rotation.y = Math.random() * Math.PI;
-        group.add(ring);
-    }
-    
-    return group;
-}
-
-const sphereColors = [
-    new THREE.Color(0x00ffff).multiplyScalar(1.2),
-    new THREE.Color(0xff1493).multiplyScalar(1.1),
-    new THREE.Color(0x4169e1).multiplyScalar(1.2),
-    new THREE.Color(0xff69b4).multiplyScalar(1.1),
-    new THREE.Color(0x00bfff).multiplyScalar(1.2)
-];
-
-const coreSphere = createSpiralSphere(4, 25000, sphereColors);
-const orbitRings = createOrbitRings(5.8, 6, 0.4);
-
-const mainGroup = new THREE.Group();
-mainGroup.scale.set(1.2, 1.2, 1.2);
-mainGroup.add(coreSphere);
-mainGroup.add(orbitRings);
-scene.add(mainGroup);
-
-let time = 0;
-
-function animate() {
-    requestAnimationFrame(animate);
-    time += 0.002;
-    coreSphere.material.uniforms.time.value = time;
-    orbitRings.children.forEach(ring => {
-        ring.material.uniforms.time.value = time;
-    });
-    coreSphere.rotation.y += 0.001;
-    coreSphere.rotation.x = Math.sin(time * 0.5) * 0.15;
-    orbitRings.children.forEach((ring, index) => {
-        const dynamicSpeed = 0.001 * (Math.sin(time * 0.2) + 2.0) * (index + 1);
-        ring.rotation.z += dynamicSpeed;
-        ring.rotation.x += dynamicSpeed * 0.6;
-        ring.rotation.y += dynamicSpeed * 0.4;
-    });
-    const breathe = 1 + Math.sin(time * 1.5) * 0.1;
-    coreSphere.scale.set(breathe, breathe, breathe);
-    controls.update();
-    renderer.render(scene, camera);
-}
-
-window.addEventListener('resize', () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    renderer.setSize(width, height);
-});
-
-animate();
-</script>
-<html>
-<body>
-<div class="ui-menu top-left">
-  <div class="menu-title">☰ Menu</div>
-  <div class="menu-item">Home</div>
-  <div class="menu-item">Gallery</div>
-  <div class="menu-item">About</div>
-</div>
-
-<div class="ui-menu top-right">
-  <div class="menu-title">⚙️ Options</div>
-  <div class="menu-item">Settings</div>
-  <div class="menu-item">Themes</div>
-  <div class="menu-item">Exit</div>
-</div>
+    </script>
 </body>
 </html>
