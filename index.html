@@ -25,8 +25,26 @@
             font-family: 'Inter', sans-serif;
             background-color: #14131F;
             position: relative;
+            isolation: isolate;
             transition: filter 0.5s ease-in-out, background-color 0.7s ease-in-out;
         }
+
+        .scene-backdrop {
+            position: fixed;
+            inset: -24px;
+            width: calc(100% + 48px);
+            height: calc(100% + 48px);
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+            image-rendering: pixelated;
+            filter: blur(18px);
+            transform: scale(1.035);
+            transition: opacity 0.7s ease-in-out;
+        }
+
+        #sceneBackdropA { opacity: 0; }
+        #sceneBackdropB { opacity: 0; }
 
         .scene-container {
             position: absolute;
@@ -37,6 +55,7 @@
             width: 1137px;
             height: 796px;
             overflow: hidden;
+            z-index: 1;
         }
 
         .full-screen-gif {
@@ -196,6 +215,10 @@
 </head>
 <body class="bg-[#14131F]">
 
+    <img id="sceneBackdropA" class="scene-backdrop" src="./homedark.gif" alt="" aria-hidden="true">
+    <img id="sceneBackdropB" class="scene-backdrop" src="" alt="" aria-hidden="true">
+    <div id="introBlackout" class="fixed inset-0 bg-black z-40" aria-hidden="true"></div>
+
     <div id="soundPromptOverlay" class="fixed top-0 left-0 w-full h-full bg-black flex justify-center items-center z-50 cursor-pointer" style="transition: opacity 1s ease;">
         <p class="text-white text-2xl">Please turn on your sound and press "Enter" or click to start</p>
     </div>
@@ -242,6 +265,9 @@
             const loadingScreenOverlay = document.getElementById('loadingScreenOverlay');
             const loadingScreenGif     = document.getElementById('loadingScreenGif');
             const sceneContainer       = document.getElementById('sceneContainer');
+            const introBlackout        = document.getElementById('introBlackout');
+            const backdropA            = document.getElementById('sceneBackdropA');
+            const backdropB            = document.getElementById('sceneBackdropB');
 
             const colorOverlayGif   = document.getElementById('colorOverlayGif');
             const bgGifA            = document.getElementById('backgroundSceneGifA');
@@ -260,13 +286,20 @@
 
             function activeBg()   { return activeBgLayer === 'A' ? bgGifA : bgGifB; }
             function inactiveBg() { return activeBgLayer === 'A' ? bgGifB : bgGifA; }
+            function activeBackdrop()   { return activeBgLayer === 'A' ? backdropA : backdropB; }
+            function inactiveBackdrop() { return activeBgLayer === 'A' ? backdropB : backdropA; }
 
             function crossFadeBg(newBgSrc, newColorSrc, onComplete) {
                 const incoming = inactiveBg();
                 const outgoing = activeBg();
+                const incomingBackdrop = inactiveBackdrop();
+                const outgoingBackdrop = activeBackdrop();
                 incoming.src = newBgSrc;
+                incomingBackdrop.src = newBgSrc;
                 incoming.style.opacity = '1';
+                incomingBackdrop.style.opacity = '1';
                 outgoing.style.opacity = '0';
+                outgoingBackdrop.style.opacity = '0';
                 activeBgLayer = activeBgLayer === 'A' ? 'B' : 'A';
                 colorOverlayGif.src = newColorSrc;
                 if (onComplete) setTimeout(onComplete, FADE_MS);
@@ -284,10 +317,14 @@
                 // Fade out background layers so they don't show through letterbox areas
                 bgGifA.style.opacity = '0';
                 bgGifB.style.opacity = '0';
+                backdropA.style.opacity = '0';
+                backdropB.style.opacity = '0';
                 // Load and fade in the simple gif on top
                 simpleSceneGif.src = gifSrc;
                 simpleSceneGif.style.opacity = '1';
                 simpleSceneGif.style.pointerEvents = 'auto';
+                activeBackdrop().src = gifSrc;
+                activeBackdrop().style.opacity = '1';
                 // Raise color overlay above simple gif so the cutout cursor is visible
                 colorOverlayGif.src = gifSrc;
                 colorOverlayGif.style.zIndex = '4';
@@ -321,6 +358,8 @@
                     setTimeout(() => { simpleSceneGif.src = ''; }, 700);
                     // Restore background layers
                     activeBg().style.opacity = '1';
+                    activeBackdrop().src = './homedark.gif';
+                    activeBackdrop().style.opacity = '1';
                     document.getElementById('hitboxHomeTransition').style.pointerEvents = 'auto';
                     document.getElementById('hitboxRecordStore').style.pointerEvents    = 'auto';
                     document.getElementById('hitboxShop').style.pointerEvents           = 'auto';
@@ -421,10 +460,10 @@
             function showLoadingScreen() {
                 if (hasStarted) return;
                 hasStarted = true;
+                loadingScreenOverlay.style.opacity = '1';
                 soundPromptOverlay.style.opacity = '0';
                 soundPromptOverlay.style.pointerEvents = 'none';
                 setTimeout(() => soundPromptOverlay.remove(), 1000);
-                loadingScreenOverlay.style.opacity = '1';
                 loadingScreenLoopAudio.play().catch(() => {});
             }
 
@@ -434,7 +473,9 @@
                 loadingCompleteAudio.play().catch(() => {});
                 loadingScreenLoopAudio.pause();
                 loadingScreenLoopAudio.currentTime = 0;
+                introBlackout.remove();
                 loadingScreenOverlay.style.opacity = '0';
+                activeBackdrop().style.opacity = '1';
                 sceneContainer.style.opacity = '1';
                 document.removeEventListener('keydown', handleKeydown);
                 setTimeout(() => {
