@@ -403,6 +403,10 @@ input[type="range"]:focus-visible {
   border-color: #77708455;
   pointer-events: auto;
 }
+#world:has(.scene-frame[data-room="museum"]) .room-heading {
+  top: auto;
+  bottom: calc(114px + var(--player-offset) + env(safe-area-inset-bottom));
+}
 .scene-frame {
   position: fixed;
   inset: 0;
@@ -1143,16 +1147,26 @@ input[type="range"]::-moz-range-thumb {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: max(100vw, 160dvh);
-  height: max(100dvh, 62.5vw);
+  width: max(100vw, calc(100dvh * var(--canvas-ratio, 1.6)));
+  height: max(100dvh, calc(100vw / var(--canvas-ratio, 1.6)));
   max-width: none;
   background: #151222;
   image-rendering: pixelated;
   cursor: crosshair;
 }
 .art-fitted .experiment-canvas {
-  width: min(100vw, 160dvh);
-  height: min(100dvh, 62.5vw);
+  width: min(100vw, calc(100dvh * var(--canvas-ratio, 1.6)));
+  height: min(100dvh, calc(100vw / var(--canvas-ratio, 1.6)));
+}
+.experiment-legacy-art {
+  pointer-events: none;
+  background: #000;
+}
+.experiment[data-legacy="true"] {
+  background: #000;
+}
+.experiment[data-legacy="true"] canvas.experiment-canvas {
+  background: transparent;
 }
 .experiment-planets {
   position: fixed;
@@ -1241,6 +1255,31 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid #77708466;
   border-radius: 6px;
   background: var(--glass);
+}
+.experiment[data-legacy="true"] .experiment-title {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+@media (min-height: 501px) {
+  .experiment[data-legacy="true"] .experiment-description {
+    top: auto;
+    bottom: calc(150px + var(--player-offset) + env(safe-area-inset-bottom));
+  }
+}
+@media (min-width: 801px) and (min-height: 501px) {
+  .experiment[data-legacy="true"] .experiment-planets {
+    top: calc(max(var(--edge), env(safe-area-inset-top)) + 96px);
+  }
+}
+@media (max-width: 800px) and (min-height: 501px) {
+  .experiment[data-legacy="true"] .experiment-description {
+    bottom: calc(200px + var(--player-offset) + env(safe-area-inset-bottom));
+  }
 }
 .experiment-field {
   display: flex;

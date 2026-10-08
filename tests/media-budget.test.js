@@ -35,3 +35,15 @@ test("optimized media remain within the mobile download budget", () => {
     "The first city loop exceeds 2MB",
   );
 });
+
+test("the original planet painting animations stay within a small shared budget", () => {
+  const total = [
+    "redplanet1.gif",
+    "yellowplanet1.gif",
+    "yellowbackground.gif",
+  ].reduce((bytes, name) => bytes + statSync(new URL(name, root)).size, 0);
+  assert.ok(
+    total <= 300_000,
+    "The restored planet animations exceed 300KB combined",
+  );
+});

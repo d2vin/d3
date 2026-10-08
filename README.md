@@ -20,7 +20,7 @@ The check runs JavaScript syntax checks and Node's built-in test runner. There a
 
 - `#home`: the city, a light reveal, accessible room links and a hidden star.
 - `#records`: the existing record-store track, with play/pause, seek and volume. Playback continues while navigating rooms and stops when the player is closed or sound is switched off.
-- `#museum`: seven canvas experiments; the featured planet rotates weekly on a UTC schedule. Use pointer/touch input, or focus the canvas and use arrow keys + Enter. Each planet keeps its drawing while the museum is open. Save an image before leaving the room; drawings are not stored after navigation/reload.
+- `#museum`: the original Yellow planet and Red planet painting rooms, plus five canvas experiments; the featured planet rotates weekly on a UTC schedule. Yellow stamps jagged circles (radius 10–100; scroll, slider, or +/- keys); Red stamps fixed small dots. Hover previews the animated reveal, click/tap or Enter stamps it, and right-click or Hue cycles the artwork colors. Use pointer/touch input, or focus the canvas and use arrow keys + Enter. Each planet keeps its drawing while the museum is open. Save an image before leaving the room; drawings are not stored after navigation/reload.
 - `#shop`: stories about the existing artwork, a free city postcard and links into the listening room and museum. This is an art collection, not an inventory or checkout.
 - `#observatory`: the hidden city view, unlocked by finding the star. Discoveries, motion and sound preferences are stored only in this browser. Storage failures do not prevent exploring.
 
@@ -30,7 +30,7 @@ Motion follows `prefers-reduced-motion` and Save-Data by default and can be chan
 
 ## Assets
 
-Original GIFs and audio are retained at the root, including the unlinked legacy experiments (`bedlam.html`, `hi.html`, `spin.html`, `main.js`, `style.css`). The current site uses the optimized assets under `assets/`; see [media notes](assets/README.md) for the reproducible conversion commands and size manifest.
+Original GIFs and audio are retained at the root, including the unlinked legacy experiments (`bedlam.html`, `hi.html`, `spin.html`, `main.js`, `style.css`). The restored Red/Yellow rooms also load their original animated GIFs (about 270 KB combined with the shared reveal), with optimized posters when motion is off. Other scenes use the optimized assets under `assets/`; see [media notes](assets/README.md) for the reproducible conversion commands and size manifest.
 
 The five silent video loops total about **7.06 MB**, compared with **147.32 MB** for their GIF sources (95.2% less). The current room loads its own video; the museum module and music load only when needed. Posters for the city are below 200 KB each. These are file-size comparisons, not a Lighthouse score or a measured mobile-network loading time.
 
@@ -41,7 +41,7 @@ Before shipping changes, check:
 1. Root URL: silent sound prompt → click/Enter starts intro loop → second click/Enter stops loop and plays transition. Test muted entry, Sound toggle, home Restart intro, Map replay, and silent direct room links.
 2. City → every room, Map, browser Back/Forward and direct room links.
 3. Music start/pause, seeking, sound-off, volume, room changes and closing the player.
-4. Every museum activity, mouse/touch drawing, keyboard drawing, undo/clear and PNG preview/download.
+4. Original Red/Yellow artwork and animated jagged cutouts, persistent stamps versus hover preview, yellow size changes, red fixed dots, right-click/Hue, and motion-off posters. Also check every other museum activity, touch/keyboard drawing, undo/clear and PNG preview/download.
 5. Shop object dialogs, postcard download, Escape/focus return and hidden-star discovery persistence.
 6. Motion off and reload, keyboard-only navigation, and images remaining visible when motion is off.
 7. Full-screen cover, drag/keyboard pan, Fit art, museum planet reopening and panel focus return.

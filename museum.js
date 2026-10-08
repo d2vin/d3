@@ -1,3 +1,12 @@
+import {
+  LEGACY_WIDTH,
+  LEGACY_HEIGHT,
+  LEGACY_PAINTINGS,
+  cutoutRadius,
+  jaggedCirclePath,
+  jaggedCirclePoints,
+} from "./legacy-painting.js";
+
 const WIDTH = 960;
 const HEIGHT = 600;
 const MAX_POINTS = 600;
@@ -13,16 +22,18 @@ const COLORS = [
 export const EXPERIMENTS = Object.freeze([
   {
     id: "solar",
-    name: "Solar study",
-    description: "Drag to uncover the warm terrain of a sleeping sun.",
-    action: "Reveal a patch",
+    name: "Yellow planet",
+    description:
+      "Tap to stamp jagged circles. Scroll or use Size to make them bigger or smaller. Right-click or tap Hue to change colors.",
+    action: "Stamp a jagged circle",
     color: "#f5bd75",
   },
   {
     id: "redshift",
-    name: "Red shift",
-    description: "Drag to uncover a cool world beyond the red horizon.",
-    action: "Reveal a patch",
+    name: "Red planet",
+    description:
+      "Tap to leave little jagged dots. Right-click or tap Hue to change colors.",
+    action: "Place a dot",
     color: "#ee998e",
   },
   {
@@ -169,23 +180,7 @@ function buildBase(id) {
     ctx,
     EXPERIMENTS.findIndex((item) => item.id === id),
   );
-  if (id === "solar" || id === "redshift") {
-    const warm = id === "solar";
-    drawPlanet(
-      ctx,
-      486,
-      298,
-      211,
-      warm
-        ? ["#ee9974", "#c96667", "#f5c17c", "#e08068", "#f3d393"]
-        : ["#788ad1", "#6065a0", "#93bcda", "#af9acf", "#78a1b9"],
-    );
-    ctx.strokeStyle = warm ? "#9b5669" : "#836788";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.ellipse(486, 315, 328, 60, -0.22, 0, Math.PI * 2);
-    ctx.stroke();
-  } else if (id === "orbit") {
+  if (id === "orbit") {
     drawPlanet(ctx, 480, 300, 74, ["#927498", "#b294b0", "#765f8e"]);
     ctx.strokeStyle = "#3d314e";
     ctx.lineWidth = 2;
@@ -241,6 +236,13 @@ export function mountMuseum(
   let active = EXPERIMENTS[initialIndex];
   let selectedColor = COLORS[0][1];
   let brushSize = 28;
+  let yellowRadius = 40;
+  let hue = 0;
+  let hoverPoint = null;
+  let jitter = { x: 0, y: 0 };
+  let jiggleFrame = null;
+  let jiggleTicks = 0;
+  let isActive = true;
   let drawing = null;
   let pointerId = null;
   let discovered = false;
@@ -307,13 +309,52 @@ export function mountMuseum(
     container.replaceChildren(root);
     const cleanup = () => root.remove();
     cleanup.selectPlanet = () => {};
+    cleanup.setActive = () => {};
+    cleanup.setReducedMotion = () => {};
     return cleanup;
   }
   ctx.imageSmoothingEnabled = false;
-  const scratch = document.createElement("canvas");
-  scratch.width = WIDTH;
-  scratch.height = HEIGHT;
-  const scratchCtx = scratch.getContext("2d");
+  const svgElement = (tag) =>
+    document.createElementNS("http://www.w3.org/2000/svg", tag);
+  const legacyArt = svgElement("svg");
+  legacyArt.setAttribute("class", "experiment-canvas experiment-legacy-art");
+  legacyArt.setAttribute("viewBox", `0 0 ${LEGACY_WIDTH} ${LEGACY_HEIGHT}`);
+  legacyArt.setAttribute("aria-hidden", "true");
+  const defs = svgElement("defs");
+  const clip = svgElement("clipPath");
+  const clipId = `${helpId}-cutouts`;
+  clip.id = clipId;
+  clip.setAttribute("clipPathUnits", "userSpaceOnUse");
+  const cutoutPath = svgElement("path");
+  clip.append(cutoutPath);
+  defs.append(clip);
+  const legacyBackground = svgElement("image");
+  const legacyReveal = svgElement("image");
+  for (const image of [legacyBackground, legacyReveal]) {
+    image.setAttribute("width", String(LEGACY_WIDTH));
+    image.setAttribute("height", String(LEGACY_HEIGHT));
+    image.setAttribute("preserveAspectRatio", "none");
+  }
+  legacyReveal.setAttribute("clip-path", `url(#${clipId})`);
+  legacyArt.append(defs, legacyBackground, legacyReveal);
+  // SVG image layers retain GIF animation. Separate stills are used only for PNGs.
+  const posters = new Map();
+  const posterSources = [
+    ...Object.values(LEGACY_PAINTINGS).map((painting) => painting.poster),
+    "./assets/yellow-room.webp",
+  ];
+  for (const source of posterSources) {
+    const image = document.createElement("img");
+    image.addEventListener("load", requestRender);
+    image.addEventListener("error", () => {
+      if (disposed) return;
+      announce(
+        "The image preview could not load. Reload this room to try again.",
+      );
+    });
+    image.src = source;
+    posters.set(source, image);
+  }
   const tools = element("div", "experiment-tools");
   const colorLabel = element("label", "experiment-field");
   colorLabel.append(element("span", "", "Color"));
@@ -337,11 +378,15 @@ export function mountMuseum(
   sizeInput.value = String(brushSize);
   sizeInput.setAttribute("aria-label", "Brush size");
   sizeInput.addEventListener("input", () => {
-    brushSize = Number(sizeInput.value);
-    sizeInput.setAttribute("aria-valuetext", `${brushSize} pixels`);
+    if (active.id === "solar")
+      yellowRadius = cutoutRadius(Number(sizeInput.value));
+    else brushSize = Number(sizeInput.value);
+    updateSize();
     requestRender();
   });
   sizeLabel.append(sizeCaption, sizeInput);
+  const hueButton = button("Hue", changeHue);
+  hueButton.setAttribute("aria-label", "Change artwork hue by 30 degrees");
   const addButton = button("Add a mark", () => {
     if (pointerId !== null) return;
     const count = pointCount();
@@ -406,6 +451,7 @@ export function mountMuseum(
   tools.append(
     colorLabel,
     sizeLabel,
+    hueButton,
     addButton,
     undoButton,
     clearButton,
@@ -415,6 +461,7 @@ export function mountMuseum(
     nav,
     heading,
     description,
+    legacyArt,
     canvas,
     tools,
     keyboardHelp,
@@ -422,6 +469,61 @@ export function mountMuseum(
     exportDialog,
   );
   container.replaceChildren(root);
+
+  function isLegacy() {
+    return Boolean(LEGACY_PAINTINGS[active.id]);
+  }
+
+  function updateSize() {
+    const legacy = active.id === "solar";
+    sizeCaption.textContent = legacy ? "Size" : "Brush size";
+    sizeInput.min = legacy ? "10" : "12";
+    sizeInput.max = legacy ? "100" : "60";
+    sizeInput.step = legacy ? "5" : "4";
+    sizeInput.value = String(legacy ? yellowRadius : brushSize);
+    sizeInput.setAttribute("aria-label", legacy ? "Circle size" : "Brush size");
+    sizeInput.setAttribute("aria-valuetext", `${sizeInput.value} pixels`);
+  }
+
+  function changeHue() {
+    if (!isLegacy()) return;
+    hue = (hue + 30) % 360;
+    legacyArt.style.filter = `hue-rotate(${hue}deg)`;
+    announce(`Artwork hue: ${hue} degrees.`);
+  }
+
+  function updateLegacyImages() {
+    if (!isLegacy()) return;
+    const painting = LEGACY_PAINTINGS[active.id];
+    legacyBackground.setAttribute(
+      "href",
+      reducedMotion ? painting.poster : painting.animation,
+    );
+    legacyReveal.setAttribute(
+      "href",
+      reducedMotion ? "./assets/yellow-room.webp" : "./yellowbackground.gif",
+    );
+  }
+
+  function syncJiggle() {
+    if (jiggleFrame !== null) cancelAnimationFrame(jiggleFrame);
+    jiggleFrame = null;
+    if (disposed || !isActive || reducedMotion || !isLegacy()) {
+      jitter = { x: 0, y: 0 };
+      return;
+    }
+    const tick = () => {
+      jiggleFrame = null;
+      if (disposed || !isActive || reducedMotion || !isLegacy()) return;
+      jiggleTicks += 1;
+      if (jiggleTicks % 10 === 0) {
+        jitter = { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
+        renderLegacy();
+      }
+      jiggleFrame = requestAnimationFrame(tick);
+    };
+    jiggleFrame = requestAnimationFrame(tick);
+  }
 
   function getBase() {
     if (!bases.has(active.id)) bases.set(active.id, buildBase(active.id));
@@ -446,8 +548,14 @@ export function mountMuseum(
   }
 
   function clampKeyboardPoint(point, bounds = visibleBounds()) {
-    const marginX = Math.min(18 / WIDTH, (bounds.maxX - bounds.minX) / 4);
-    const marginY = Math.min(18 / HEIGHT, (bounds.maxY - bounds.minY) / 4);
+    const marginX = Math.min(
+      18 / canvas.width,
+      (bounds.maxX - bounds.minX) / 4,
+    );
+    const marginY = Math.min(
+      18 / canvas.height,
+      (bounds.maxY - bounds.minY) / 4,
+    );
     return {
       x: Math.max(
         bounds.minX + marginX,
@@ -463,6 +571,19 @@ export function mountMuseum(
   function selectExperiment(experiment) {
     finishStroke();
     active = experiment;
+    hoverPoint = null;
+    const legacy = isLegacy();
+    canvas.width = legacy ? LEGACY_WIDTH : WIDTH;
+    canvas.height = legacy ? LEGACY_HEIGHT : HEIGHT;
+    ctx.imageSmoothingEnabled = false;
+    root.style.setProperty(
+      "--canvas-ratio",
+      String(canvas.width / canvas.height),
+    );
+    root.dataset.legacy = String(legacy);
+    legacyArt.style.display = legacy ? "block" : "none";
+    legacyArt.style.filter = `hue-rotate(${hue}deg)`;
+    updateLegacyImages();
     heading.textContent = experiment.name;
     description.textContent = experiment.description;
     choices.forEach((choice, index) =>
@@ -471,13 +592,20 @@ export function mountMuseum(
         String(EXPERIMENTS[index].id === active.id),
       ),
     );
-    colorLabel.hidden = active.id === "solar" || active.id === "redshift";
+    colorLabel.hidden = legacy;
+    sizeLabel.hidden = active.id === "redshift";
+    hueButton.hidden = !legacy;
+    updateSize();
+    keyboardHelp.textContent = legacy
+      ? "Move to preview; click or tap to stamp. Arrow keys move, Enter stamps, +/− resizes yellow circles, H changes hue."
+      : "Use a finger, mouse, or pen. On the canvas, arrow keys move and Enter adds a mark.";
     addButton.setAttribute(
       "aria-label",
       `Add a mark: ${experiment.action.toLowerCase()}`,
     );
     announce(`${experiment.name}. ${experiment.description}`);
     showCursor = false;
+    syncJiggle();
     requestRender();
   }
 
@@ -489,7 +617,16 @@ export function mountMuseum(
       );
       return false;
     }
-    drawing = { color: selectedColor, size: brushSize, points: [point] };
+    drawing = {
+      color: selectedColor,
+      size:
+        active.id === "redshift"
+          ? 10
+          : active.id === "solar"
+            ? yellowRadius
+            : brushSize,
+      points: [point],
+    };
     strokes.push(drawing);
     if (!discovered) {
       discovered = true;
@@ -500,16 +637,13 @@ export function mountMuseum(
   }
 
   function appendPoint(point) {
-    if (!drawing || pointCount() >= MAX_POINTS) return;
+    if (isLegacy() || !drawing || pointCount() >= MAX_POINTS) return;
     const previous = drawing.points[drawing.points.length - 1];
     const distance = Math.hypot(
       (point.x - previous.x) * WIDTH,
       (point.y - previous.y) * HEIGHT,
     );
-    const spacing =
-      active.id === "solar" || active.id === "redshift" || active.id === "prism"
-        ? 5
-        : Math.max(25, brushSize);
+    const spacing = active.id === "prism" ? 5 : Math.max(25, brushSize);
     if (distance < spacing) return;
     drawing.points.push(point);
     requestRender();
@@ -535,47 +669,66 @@ export function mountMuseum(
       });
   }
 
-  function renderReveal(strokes) {
-    scratchCtx.globalCompositeOperation = "source-over";
-    scratchCtx.clearRect(0, 0, WIDTH, HEIGHT);
-    starfield(scratchCtx, active.id === "solar" ? 0 : 1);
-    scratchCtx.globalAlpha = 0.13;
-    scratchCtx.drawImage(getBase(), 0, 0);
-    scratchCtx.globalAlpha = 1;
-    scratchCtx.globalCompositeOperation = "destination-out";
-    scratchCtx.lineCap = "round";
-    scratchCtx.lineJoin = "round";
-    strokes.forEach((stroke) => {
-      scratchCtx.lineWidth = stroke.size * 3;
-      scratchCtx.beginPath();
-      const first = stroke.points[0];
-      scratchCtx.arc(
-        first.x * WIDTH,
-        first.y * HEIGHT,
-        stroke.size * 1.5,
-        0,
-        Math.PI * 2,
-      );
-      scratchCtx.fill();
-      scratchCtx.beginPath();
-      scratchCtx.moveTo(first.x * WIDTH, first.y * HEIGHT);
-      stroke.points.forEach((point) =>
-        scratchCtx.lineTo(point.x * WIDTH, point.y * HEIGHT),
-      );
-      scratchCtx.stroke();
+  function cutoutPaths(includePreview = true) {
+    const circles = states.get(active.id).map((stroke) => ({
+      point: stroke.points[0],
+      radius: stroke.size,
+    }));
+    if (includePreview && (hoverPoint || showCursor)) {
+      circles.push({
+        point: hoverPoint || keyboardPoint,
+        radius: active.id === "redshift" ? 10 : yellowRadius,
+      });
+    }
+    return circles;
+  }
+
+  function renderLegacy() {
+    if (disposed || !isLegacy()) return;
+    const path = cutoutPaths()
+      .map(({ point, radius }) =>
+        jaggedCirclePath(
+          point.x * LEGACY_WIDTH + jitter.x,
+          point.y * LEGACY_HEIGHT + jitter.y,
+          radius,
+        ),
+      )
+      .join(" ");
+    cutoutPath.setAttribute("d", path);
+    legacyReveal.style.opacity = path ? "1" : "0";
+  }
+
+  function renderLegacySnapshot() {
+    const background = posters.get(LEGACY_PAINTINGS[active.id].poster);
+    const reveal = posters.get("./assets/yellow-room.webp");
+    ctx.save();
+    ctx.filter = `hue-rotate(${hue}deg)`;
+    ctx.drawImage(background, 0, 0, LEGACY_WIDTH, LEGACY_HEIGHT);
+    ctx.beginPath();
+    cutoutPaths(false).forEach(({ point, radius }) => {
+      jaggedCirclePoints(
+        point.x * LEGACY_WIDTH,
+        point.y * LEGACY_HEIGHT,
+        radius,
+      ).forEach(({ x, y }, index) => {
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
     });
-    scratchCtx.globalCompositeOperation = "source-over";
-    ctx.drawImage(scratch, 0, 0);
+    ctx.clip();
+    ctx.drawImage(reveal, 0, 0, LEGACY_WIDTH, LEGACY_HEIGHT);
+    ctx.restore();
   }
 
   function renderArtwork() {
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    ctx.drawImage(getBase(), 0, 0);
-    const strokes = states.get(active.id);
-    if (active.id === "solar" || active.id === "redshift") {
-      renderReveal(strokes);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (isLegacy()) {
+      renderLegacy();
       return;
     }
+    ctx.drawImage(getBase(), 0, 0);
+    const strokes = states.get(active.id);
     let previousStar = null;
     let index = 0;
     strokes.forEach((stroke) => {
@@ -680,9 +833,9 @@ export function mountMuseum(
 
   function render() {
     if (disposed) return;
+    if (showCursor) keyboardPoint = clampKeyboardPoint(keyboardPoint);
     renderArtwork();
-    if (showCursor) {
-      keyboardPoint = clampKeyboardPoint(keyboardPoint);
+    if (showCursor && !isLegacy()) {
       ctx.strokeStyle = "#f8e5c5";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
@@ -701,25 +854,34 @@ export function mountMuseum(
     );
     undoButton.disabled = count === 0;
     clearButton.disabled = count === 0;
+    saveButton.disabled =
+      isLegacy() &&
+      [
+        posters.get(LEGACY_PAINTINGS[active.id].poster),
+        posters.get("./assets/yellow-room.webp"),
+      ].some((image) => !image.complete || !image.naturalWidth);
   }
 
   function saveImage() {
     const version = ++exportVersion;
     finishStroke();
     renderArtwork();
+    if (isLegacy()) renderLegacySnapshot();
     const output = document.createElement("canvas");
-    output.width = WIDTH;
-    output.height = HEIGHT + 48;
+    output.width = canvas.width;
+    output.height = canvas.height + 48;
+    exportImage.width = output.width;
+    exportImage.height = output.height;
     const outputCtx = output.getContext("2d");
-    outputCtx.fillStyle = "#151222";
-    outputCtx.fillRect(0, 0, WIDTH, HEIGHT + 48);
+    outputCtx.fillStyle = isLegacy() ? "#000" : "#151222";
+    outputCtx.fillRect(0, 0, output.width, output.height);
     outputCtx.drawImage(canvas, 0, 0);
     outputCtx.fillStyle = "#d2c1c9";
     outputCtx.font = "14px monospace";
     outputCtx.fillText(
       `DIMENSION 3 / ${active.name.toUpperCase()}`,
       24,
-      HEIGHT + 30,
+      canvas.height + 30,
     );
     const name = active.id;
     const title = active.name;
@@ -757,11 +919,24 @@ export function mountMuseum(
       event.clientY,
       canvas.getBoundingClientRect(),
     );
+    hoverPoint = isLegacy() && event.pointerType !== "touch" ? point : null;
     if (!addStroke(point)) return;
     pointerId = event.pointerId;
     canvas.setPointerCapture(pointerId);
   });
   canvas.addEventListener("pointermove", (event) => {
+    if (isLegacy()) {
+      if (event.pointerType !== "touch") {
+        hoverPoint = normalizePoint(
+          event.clientX,
+          event.clientY,
+          canvas.getBoundingClientRect(),
+        );
+        showCursor = false;
+        requestRender();
+      }
+      return;
+    }
     if (event.pointerId !== pointerId) return;
     appendPoint(
       normalizePoint(
@@ -774,12 +949,47 @@ export function mountMuseum(
   canvas.addEventListener("pointerup", (event) => {
     if (event.pointerId === pointerId) finishStroke();
   });
+  canvas.addEventListener("pointerleave", () => {
+    hoverPoint = null;
+    requestRender();
+  });
   canvas.addEventListener("pointercancel", (event) => {
     if (event.pointerId === pointerId) finishStroke();
   });
   canvas.addEventListener("lostpointercapture", () => finishStroke());
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      if (active.id !== "solar" || event.deltaY === 0) return;
+      event.preventDefault();
+      yellowRadius = cutoutRadius(yellowRadius + (event.deltaY < 0 ? 5 : -5));
+      updateSize();
+      requestRender();
+    },
+    { passive: false },
+  );
+  canvas.addEventListener("contextmenu", (event) => {
+    if (!isLegacy()) return;
+    event.preventDefault();
+    changeHue();
+  });
   canvas.addEventListener("keydown", (event) => {
     if (pointerId !== null) return;
+    if (active.id === "solar" && ["+", "=", "-", "_"].includes(event.key)) {
+      event.preventDefault();
+      yellowRadius = cutoutRadius(
+        yellowRadius + (["+", "="].includes(event.key) ? 5 : -5),
+      );
+      updateSize();
+      requestRender();
+      return;
+    }
+    if (isLegacy() && event.key.toLowerCase() === "h") {
+      event.preventDefault();
+      changeHue();
+      return;
+    }
+    hoverPoint = null;
     const bounds = visibleBounds();
     keyboardPoint = showCursor
       ? clampKeyboardPoint(keyboardPoint, bounds)
@@ -829,15 +1039,32 @@ export function mountMuseum(
     disposed = true;
     resizeObserver?.disconnect();
     if (frame !== null) cancelAnimationFrame(frame);
+    if (jiggleFrame !== null) cancelAnimationFrame(jiggleFrame);
     finishStroke();
     if (exportDialog.open) exportDialog.close();
     if (exportUrl) URL.revokeObjectURL(exportUrl);
     bases.clear();
+    posters.clear();
     states.clear();
     root.remove();
   };
   cleanup.selectPlanet = (index) => {
     if (!disposed) selectExperiment(EXPERIMENTS[planetIndex(index)]);
+  };
+  cleanup.setActive = (value) => {
+    if (disposed) return;
+    isActive = Boolean(value);
+    if (!isActive) hoverPoint = null;
+    syncJiggle();
+    requestRender();
+  };
+  cleanup.setReducedMotion = (value) => {
+    if (disposed) return;
+    reducedMotion = Boolean(value);
+    root.dataset.reducedMotion = String(reducedMotion);
+    updateLegacyImages();
+    syncJiggle();
+    requestRender();
   };
   return cleanup;
 }

@@ -61,8 +61,8 @@ const introAudio = createIntroAudio({
     toast("The intro sound couldn't play. Restart the intro to try again."),
 });
 const planets = [
-  "Solar study",
-  "Red shift",
+  "Yellow planet",
+  "Red planet",
   "Orbit",
   "Echo",
   "Prism",
@@ -174,6 +174,7 @@ function updateSettings() {
   motionButton.textContent = reducedMotion() ? "Motion off" : "Motion on";
   motionButton.setAttribute("aria-pressed", String(!reducedMotion()));
   document.body.dataset.motion = reducedMotion() ? "reduced" : "full";
+  cleanupRoom.setReducedMotion?.(reducedMotion());
   introStars.setActive(
     !entered && introAudio.phase === "title" && !document.hidden,
     reducedMotion(),
@@ -377,6 +378,9 @@ sceneImage.addEventListener("error", () => {
 });
 document.addEventListener("visibilitychange", () => {
   introAudio.setHidden(document.hidden);
+  cleanupRoom.setActive?.(
+    !document.hidden && document.body.classList.contains("experiment-open"),
+  );
   introStars.setActive(
     !entered && introAudio.phase === "title" && !document.hidden,
     reducedMotion(),
@@ -671,9 +675,9 @@ function renderRecords() {
 function renderMuseum() {
   $("#scene-hint").textContent = "Touch a planet. Make a little world.";
   const positions = [
+    [41.34, 16.33],
+    [58.05, 33.92],
     [21, 25],
-    [58, 34],
-    [41, 16],
     [42, 35],
     [58, 17],
     [72, 30],
@@ -700,6 +704,7 @@ async function openExperiment(initialPlanet) {
   $("#close-experiment").hidden = false;
   $("#room-action").hidden = true;
   if (experimentReady) {
+    cleanupRoom.setActive?.(!document.hidden);
     if (initialPlanet !== undefined) cleanupRoom.selectPlanet(initialPlanet);
     $("#close-experiment").focus();
     return;
@@ -719,6 +724,7 @@ async function openExperiment(initialPlanet) {
       initialPlanet: initialPlanet ?? weeklyPlanet(),
     });
     experimentReady = true;
+    cleanupRoom.setActive?.(!document.hidden);
     if (document.body.classList.contains("experiment-open"))
       $("#close-experiment").focus();
   } catch {
@@ -731,6 +737,7 @@ async function openExperiment(initialPlanet) {
 }
 function closeExperiment(focus = true) {
   experimentRequest++;
+  cleanupRoom.setActive?.(false);
   scene.inert = false;
   $("#museum-stage").hidden = true;
   document.body.classList.remove("experiment-open");

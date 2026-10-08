@@ -4,6 +4,7 @@ These files are derived from the artwork already present in the repository. The 
 
 - `home-dark`, `home-light`, `record-store`, `shop`, and `entrance` each have a silent H.264 MP4 loop and a WebP poster. All are 800 × 450 (16:9).
 - `museum.webp`, `color-room.webp`, `yellow-room.webp`, `red-planet.webp`, and `yellow-planet.webp` preserve the 1137 × 796 composition of the corresponding original artwork. The planet images contain the planet at its original position within that canvas.
+- The restored Red/Yellow painting rooms use their small original `redplanet1.gif`, `yellowplanet1.gif`, and `yellowbackground.gif` loops (269,744 bytes combined). Their WebP posters are used when motion is off.
 - `social-preview.jpg` is a 1200 × 630 crop of the original color city artwork.
 - `favicon.svg` is a simple pixel star using the site's night and lavender colors.
 - `media-manifest.json` records source files and the exact output byte sizes.

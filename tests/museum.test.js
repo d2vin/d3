@@ -6,6 +6,11 @@ import {
   normalizePoint,
   visibleCanvasBounds,
 } from "../museum.js";
+import {
+  jaggedCirclePath,
+  jaggedCirclePoints,
+  cutoutRadius,
+} from "../legacy-painting.js";
 
 // A deliberately small DOM/canvas adapter checks interaction state and teardown.
 // Pixel output, layout, native touch handling and real downloads need browser checks.
@@ -19,6 +24,8 @@ function installDOM(t) {
   const revokedUrls = [];
   const arcs = [];
   const cursors = [];
+  const moves = [];
+  const drawnImages = [];
   let frameId = 0;
   const noop = () => {};
   const context = new Proxy(
@@ -27,6 +34,8 @@ function installDOM(t) {
       get: (target, key) => {
         if (key === "arc") return (...args) => arcs.push(args);
         if (key === "strokeRect") return (...args) => cursors.push(args);
+        if (key === "moveTo") return (...args) => moves.push(args);
+        if (key === "drawImage") return (...args) => drawnImages.push(args);
         return target[key] || noop;
       },
       set: (target, key, value) => {
@@ -41,10 +50,16 @@ function installDOM(t) {
       this.children = [];
       this.attributes = {};
       this.listeners = {};
-      this.style = { setProperty: noop };
+      this.style = {
+        setProperty: (name, value) => {
+          this.style[name] = value;
+        },
+      };
       this.dataset = {};
       this.textContent = "";
       this.captures = new Set();
+      this.complete = true;
+      this.naturalWidth = 1137;
     }
     append(...nodes) {
       nodes.forEach((node) => {
@@ -102,7 +117,10 @@ function installDOM(t) {
         );
     }
   }
-  globalThis.document = { createElement: (tag) => new Element(tag) };
+  globalThis.document = {
+    createElement: (tag) => new Element(tag),
+    createElementNS: (_, tag) => new Element(tag),
+  };
   globalThis.requestAnimationFrame = (fn) => {
     frames.set(++frameId, fn);
     return frameId;
@@ -127,6 +145,8 @@ function installDOM(t) {
     revokedUrls,
     arcs,
     cursors,
+    moves,
+    drawnImages,
     flush() {
       for (const [id, fn] of [...frames]) {
         frames.delete(id);
@@ -141,6 +161,10 @@ function controls(harness, container) {
   return {
     planets: nodes.filter((node) => node.className === "experiment-planet"),
     canvas: nodes.find((node) => node.tagName === "canvas"),
+    cutout: nodes.find((node) => node.tagName === "path"),
+    legacy: nodes.find((node) => node.tagName === "svg"),
+    images: nodes.filter((node) => node.tagName === "image"),
+    size: nodes.find((node) => node.className === "experiment-range"),
     title: nodes.find((node) => node.className === "experiment-title"),
     button: (label) =>
       nodes.find(
@@ -216,7 +240,7 @@ test("synthetic and keyboard marks stay in the visible crop while pointer coordi
   const frame = { left: 0, top: 0, width: 400, height: 750 };
   const canvasRect = { left: -400, top: 0, width: 1200, height: 750 };
   container.getBoundingClientRect = () => frame;
-  const cleanup = mountMuseum(container);
+  const cleanup = mountMuseum(container, { reducedMotion: true });
   const ui = controls(harness, container);
   ui.canvas.getBoundingClientRect = () => canvasRect;
   assert.deepEqual(visibleCanvasBounds(canvasRect, frame), {
@@ -227,14 +251,26 @@ test("synthetic and keyboard marks stay in the visible crop while pointer coordi
   });
   for (let i = 0; i < 8; i += 1) ui.button("Add a mark").click();
   harness.flush();
-  assert.equal(harness.arcs.length, 8);
-  assert.ok(harness.arcs.every(([x]) => x >= 320 && x <= 640));
+  const circles = ui.cutout.attributes.d.split("Z").filter(Boolean);
+  assert.equal(circles.length, 8);
+  for (const circle of circles) {
+    const xs = [...circle.matchAll(/[ML]([\d.-]+),/g)].map((match) =>
+      Number(match[1]),
+    );
+    const center = (Math.max(...xs) + Math.min(...xs)) / 2;
+    assert.ok(center >= 1137 / 3 && center <= (1137 * 2) / 3);
+  }
+  ui.button("Clear").click();
   for (let i = 0; i < 100; i += 1)
     ui.canvas.emit("keydown", { key: "ArrowLeft" });
   ui.canvas.emit("keydown", { key: "Enter" });
+  ui.canvas.emit("blur");
   harness.flush();
-  const cursor = harness.cursors.at(-1);
-  assert.ok(cursor[0] >= 320 && cursor[0] + cursor[2] <= 640);
+  assert.equal(
+    ui.cutout.attributes.d,
+    jaggedCirclePath(1137 / 3 + 18, 796 / 2, 40),
+  );
+  ui.button("Clear").click();
   ui.canvas.emit("pointerdown", {
     isPrimary: true,
     pointerType: "touch",
@@ -244,9 +280,10 @@ test("synthetic and keyboard marks stay in the visible crop while pointer coordi
   });
   ui.canvas.emit("pointerup", { pointerId: 5 });
   harness.flush();
-  const mark = harness.arcs.at(-1);
-  assert.equal(mark[0], 416);
-  assert.equal(mark[1], 200);
+  assert.equal(
+    ui.cutout.attributes.d,
+    jaggedCirclePath((1137 * 520) / 1200, 796 / 3, 40),
+  );
   cleanup();
 });
 
@@ -260,7 +297,6 @@ test("all seven experiments retain artwork, support touch and keyboard, and undo
       discoveries += 1;
     },
   });
-  t.after(cleanup);
   const ui = controls(harness, container);
   assert.equal(ui.planets.length, 7);
   for (const planet of ui.planets) {
@@ -283,7 +319,7 @@ test("all seven experiments retain artwork, support touch and keyboard, and undo
   ui.canvas.emit("pointermove", { pointerId: 9, clientX: 350, clientY: 230 });
   ui.canvas.emit("pointerup", { pointerId: 9 });
   harness.flush();
-  assert.match(ui.canvas.attributes["aria-label"], /3 marks\./);
+  assert.match(ui.canvas.attributes["aria-label"], /2 marks\./);
   assert.equal(ui.canvas.captures.size, 0);
   ui.button("Undo").click();
   harness.flush();
@@ -297,6 +333,237 @@ test("all seven experiments retain artwork, support touch and keyboard, and undo
   assert.match(ui.canvas.attributes["aria-label"], /0 marks\./);
   assert.equal(ui.button("Undo").disabled, true);
   assert.equal(ui.button("Clear").disabled, true);
+  cleanup();
+});
+
+test("the original circle uses 64 grid-snapped right-angle steps and bounded sizes", () => {
+  const points = jaggedCirclePoints(100, 100, 40);
+  assert.equal(points.length, 129);
+  assert.deepEqual(points[0], { x: 140, y: 100 });
+  assert.deepEqual(points.at(-1), points[0]);
+  for (let i = 0; i < points.length; i += 1) {
+    assert.equal(points[i].x % 5, 0);
+    assert.equal(points[i].y % 5, 0);
+    if (i)
+      assert.ok(
+        points[i].x === points[i - 1].x || points[i].y === points[i - 1].y,
+      );
+  }
+  assert.deepEqual(
+    [-100, 10, 45, 100, 200, NaN].map(cutoutRadius),
+    [10, 10, 45, 100, 100, 40],
+  );
+});
+
+test("yellow hover previews clear on leave, stamps persist, and wheel/slider/keys control their size", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const cleanup = mountMuseum(container, { reducedMotion: true });
+  const ui = controls(harness, container);
+  assert.equal(ui.canvas.width, 1137);
+  assert.equal(ui.canvas.height, 796);
+  assert.equal(ui.size.value, "40");
+  const point = {
+    clientX: 260,
+    clientY: 180,
+    pointerType: "mouse",
+    pointerId: 1,
+  };
+  ui.canvas.emit("pointermove", point);
+  harness.flush();
+  assert.equal(ui.cutout.attributes.d, jaggedCirclePath(568.5, 398, 40));
+  assert.match(ui.canvas.attributes["aria-label"], /0 marks\./);
+  ui.canvas.emit("pointerleave");
+  harness.flush();
+  assert.equal(ui.cutout.attributes.d, "");
+  ui.canvas.emit("wheel", { deltaY: -1 });
+  assert.equal(ui.size.value, "45");
+  ui.canvas.emit("pointerdown", { ...point, isPrimary: true, button: 0 });
+  ui.canvas.emit("pointermove", { ...point, clientX: 400 });
+  ui.canvas.emit("pointerup", { pointerId: 1 });
+  ui.canvas.emit("pointerleave");
+  harness.flush();
+  assert.equal(ui.cutout.attributes.d, jaggedCirclePath(568.5, 398, 45));
+  assert.match(ui.canvas.attributes["aria-label"], /1 mark\./);
+  for (let i = 0; i < 20; i += 1) ui.canvas.emit("wheel", { deltaY: 1 });
+  assert.equal(ui.size.value, "10");
+  for (let i = 0; i < 30; i += 1) ui.canvas.emit("keydown", { key: "+" });
+  assert.equal(ui.size.value, "100");
+  ui.canvas.emit("keydown", { key: "-" });
+  assert.equal(ui.size.value, "95");
+  ui.size.value = "65";
+  ui.size.emit("input");
+  assert.equal(ui.size.attributes["aria-valuetext"], "65 pixels");
+  cleanup();
+});
+
+test("red keeps tiny dots while hue changes through mouse, touch controls and keyboard", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const cleanup = mountMuseum(container, {
+    initialPlanet: 1,
+    reducedMotion: true,
+  });
+  const ui = controls(harness, container);
+  assert.equal(ui.size.parent.hidden, true);
+  ui.canvas.emit("wheel", { deltaY: -1 });
+  ui.canvas.emit("keydown", { key: "+" });
+  ui.canvas.emit("pointerdown", {
+    isPrimary: true,
+    pointerType: "touch",
+    pointerId: 1,
+    clientX: 260,
+    clientY: 180,
+  });
+  ui.canvas.emit("pointerup", { pointerId: 1 });
+  harness.flush();
+  assert.equal(ui.cutout.attributes.d, jaggedCirclePath(568.5, 398, 10));
+  ui.canvas.emit("contextmenu");
+  assert.equal(ui.legacy.style.filter, "hue-rotate(30deg)");
+  ui.button("Hue").click();
+  assert.equal(ui.legacy.style.filter, "hue-rotate(60deg)");
+  ui.canvas.emit("keydown", { key: "h" });
+  assert.equal(ui.legacy.style.filter, "hue-rotate(90deg)");
+  for (let i = 0; i < 9; i += 1) ui.button("Hue").click();
+  assert.equal(ui.legacy.style.filter, "hue-rotate(0deg)");
+  cleanup();
+});
+
+test("animated original art swaps to stills and its jiggle pauses when hidden or motion is off", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const cleanup = mountMuseum(container);
+  const ui = controls(harness, container);
+  assert.deepEqual(
+    ui.images.map((image) => image.attributes.href),
+    ["./yellowplanet1.gif", "./yellowbackground.gif"],
+  );
+  ui.button("Add a mark").click();
+  harness.flush();
+  assert.equal(
+    harness.frames.size,
+    1,
+    "the original jiggle keeps one animation frame",
+  );
+  cleanup.setActive(false);
+  harness.flush();
+  assert.equal(harness.frames.size, 0);
+  cleanup.setActive(true);
+  harness.flush();
+  assert.equal(harness.frames.size, 1);
+  cleanup.setReducedMotion(true);
+  harness.flush();
+  assert.equal(harness.frames.size, 0);
+  assert.deepEqual(
+    ui.images.map((image) => image.attributes.href),
+    ["./assets/yellow-planet.webp", "./assets/yellow-room.webp"],
+  );
+  cleanup.selectPlanet(1);
+  assert.equal(ui.images[0].attributes.href, "./assets/red-planet.webp");
+  cleanup.setReducedMotion(false);
+  assert.equal(ui.images[0].attributes.href, "./redplanet1.gif");
+  harness.flush();
+  assert.equal(harness.frames.size, 1);
+  cleanup.selectPlanet(2);
+  harness.flush();
+  assert.equal(
+    harness.frames.size,
+    0,
+    "other experiments do not run the cutout animation",
+  );
+  assert.equal(ui.canvas.width, 960);
+  assert.equal(ui.canvas.height, 600);
+  cleanup.selectPlanet(0);
+  cleanup();
+  assert.equal(harness.frames.size, 0);
+  assert.equal(container.children.length, 0);
+  cleanup.setActive(true);
+  cleanup.setReducedMotion(false);
+  assert.equal(harness.frames.size, 0);
+});
+
+test("legacy PNGs use original artwork dimensions and include stamps without the hover preview", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const cleanup = mountMuseum(container, { reducedMotion: true });
+  const ui = controls(harness, container);
+  ui.button("Add a mark").click();
+  ui.canvas.emit("pointermove", {
+    clientX: 100,
+    clientY: 100,
+    pointerType: "mouse",
+  });
+  harness.flush();
+  assert.equal(ui.cutout.attributes.d.split("Z").filter(Boolean).length, 2);
+  ui.button("Hue").click();
+  ui.button("Save image").click();
+  assert.equal(
+    harness.moves.length,
+    1,
+    "only the permanent circle enters the PNG clip path",
+  );
+  const drawn = harness.drawnImages.map(([source]) => source);
+  assert.equal(drawn[0].src, "./assets/yellow-planet.webp");
+  assert.equal(drawn[1].src, "./assets/yellow-room.webp");
+  const image = harness
+    .nodes(container)
+    .find((node) => node.className === "experiment-export-image");
+  assert.equal(image.width, 1137);
+  assert.equal(image.height, 844);
+  assert.equal(image.alt, "Your Yellow planet artwork");
+  assert.equal(ui.canvas.getContext("2d").filter, "hue-rotate(30deg)");
+  cleanup();
+});
+
+test("the legacy jiggle updates only every ten frames and is removed with reduced motion", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const originalRandom = Math.random;
+  Math.random = () => 0.75;
+  const cleanup = mountMuseum(container);
+  try {
+    const ui = controls(harness, container);
+    ui.button("Add a mark").click();
+    harness.flush();
+    const still = ui.cutout.attributes.d;
+    for (let i = 0; i < 8; i += 1) harness.flush();
+    assert.equal(ui.cutout.attributes.d, still);
+    harness.flush();
+    assert.equal(
+      ui.cutout.attributes.d,
+      jaggedCirclePath(568.5 + 1, 796 * 0.448 + 1, 40),
+    );
+    cleanup.setReducedMotion(true);
+    harness.flush();
+    assert.equal(ui.cutout.attributes.d, still);
+    assert.equal(harness.frames.size, 0);
+  } finally {
+    cleanup();
+    Math.random = originalRandom;
+  }
+});
+
+test("the other experiments still draw continuous strokes and undo each gesture together", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const cleanup = mountMuseum(container, { initialPlanet: 4 });
+  const ui = controls(harness, container);
+  ui.canvas.emit("pointerdown", {
+    isPrimary: true,
+    pointerType: "touch",
+    pointerId: 7,
+    clientX: 80,
+    clientY: 100,
+  });
+  ui.canvas.emit("pointermove", { pointerId: 7, clientX: 200, clientY: 160 });
+  ui.canvas.emit("pointermove", { pointerId: 7, clientX: 400, clientY: 220 });
+  ui.canvas.emit("pointerup", { pointerId: 7 });
+  harness.flush();
+  assert.match(ui.canvas.attributes["aria-label"], /3 marks\./);
+  ui.button("Undo").click();
+  harness.flush();
+  assert.match(ui.canvas.attributes["aria-label"], /0 marks\./);
+  cleanup();
 });
 
 test("drawing is bounded, export previews a downloadable PNG, and cleanup releases resources", (t) => {
