@@ -6,6 +6,7 @@ import {
 } from "./world-state.js";
 import { sceneLayout } from "./scene-layout.js";
 import { createIntroStars } from "./intro-stars.js";
+import { createIntroAudio } from "./intro-audio.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storage = {
@@ -53,6 +54,12 @@ const sceneVideo = $("#scene-video");
 const revealImage = $("#scene-reveal");
 const content = $("#room-content");
 const introStars = createIntroStars($("#intro-stars"));
+const introAudio = createIntroAudio({
+  loop: $("#intro-loop-audio"),
+  entry: $("#intro-enter-audio"),
+  onError: () =>
+    toast("The intro sound couldn't play. Restart the intro to try again."),
+});
 const planets = [
   "Solar study",
   "Red shift",
@@ -167,7 +174,10 @@ function updateSettings() {
   motionButton.textContent = reducedMotion() ? "Motion off" : "Motion on";
   motionButton.setAttribute("aria-pressed", String(!reducedMotion()));
   document.body.dataset.motion = reducedMotion() ? "reduced" : "full";
-  introStars.setActive(!entered && !document.hidden, reducedMotion());
+  introStars.setActive(
+    !entered && introAudio.phase === "title" && !document.hidden,
+    reducedMotion(),
+  );
 }
 function setSound(enabled) {
   soundEnabled = enabled;
@@ -176,6 +186,7 @@ function setSound(enabled) {
     audioRequest++;
     audio.pause();
   }
+  introAudio.setEnabled(enabled);
   updateSettings();
 }
 soundButton.addEventListener("click", () => setSound(!soundEnabled));
@@ -193,10 +204,18 @@ motionQuery.addEventListener("change", () => {
   else updateIntroMotion();
 });
 
-// The first frame is usable immediately. Animation is optional and never gates entry.
+// Only a deliberate start gesture begins the title and its audio.
 function updateIntroMotion() {
-  introStars.setActive(!entered && !document.hidden, reducedMotion());
-  if (entered || reducedMotion() || document.hidden) {
+  introStars.setActive(
+    !entered && introAudio.phase === "title" && !document.hidden,
+    reducedMotion(),
+  );
+  if (
+    entered ||
+    introAudio.phase !== "title" ||
+    reducedMotion() ||
+    document.hidden
+  ) {
     introVideo?.pause();
     if (introVideo) introVideo.hidden = true;
     return;
@@ -212,7 +231,7 @@ function updateIntroMotion() {
     introVideo.hidden = true;
     const video = introVideo;
     video.addEventListener("playing", () => {
-      video.hidden = entered || reducedMotion();
+      video.hidden = entered || introAudio.phase !== "title" || reducedMotion();
     });
     video.addEventListener("error", () => {
       video.hidden = true;
@@ -221,7 +240,22 @@ function updateIntroMotion() {
   }
   introVideo.play().catch(() => {});
 }
+function startIntro(enabled = true) {
+  if (entered || introAudio.phase !== "gate") return;
+  setSound(enabled);
+  introAudio.start(enabled);
+  $("#intro-gate").hidden = true;
+  $("#entry-art").hidden = false;
+  $("#intro-stars").hidden = false;
+  $("#entry-copy").hidden = false;
+  updateIntroMotion();
+  $("#entry-art").focus({ preventScroll: true });
+  announce("Dimension 3. Click or press Enter again to enter the city.");
+}
 function enter({ focus = true } = {}) {
+  if (entered) return;
+  // Keep play() in the click/Enter call stack. Direct room links stay silent.
+  introAudio.enter();
   entered = true;
   introStars.setActive(false, reducedMotion());
   introVideo?.pause();
@@ -237,21 +271,33 @@ function enter({ focus = true } = {}) {
   document.body.classList.add("entered");
   renderRoute({ focus });
 }
+$("#start-intro").addEventListener("click", () => startIntro());
+$("#start-muted").addEventListener("click", () => startIntro(false));
 $("#entry-art").addEventListener("click", () => enter());
 document.addEventListener("keydown", (event) => {
-  if (
-    !entered &&
-    event.key === "Enter" &&
-    !event.target.closest("button,a,input,select,dialog")
-  )
-    enter();
+  if (entered || event.key !== "Enter") return;
+  if (event.repeat) {
+    event.preventDefault();
+    return;
+  }
+  if (event.target.closest("button,a,input,select,dialog")) return;
+  event.preventDefault();
+  if (introAudio.phase === "gate") startIntro();
+  else enter();
 });
 $(".skip-link").addEventListener("click", (event) => {
   event.preventDefault();
   $("#main").focus();
   $("#main").scrollIntoView({ block: "start" });
 });
-$("#replay-intro").addEventListener("click", () => {
+function restartIntro() {
+  introAudio.reset();
+  audioRequest++;
+  audio?.pause();
+  $("#player").hidden = true;
+  document.body.classList.remove("has-player");
+  clearTimeout(toastTimer);
+  $("#toast").hidden = true;
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   closeExperiment(false);
   cleanupRoom();
@@ -265,11 +311,18 @@ $("#replay-intro").addEventListener("click", () => {
   $("#entry-screen").hidden = false;
   $("#world").hidden = true;
   $("#replay-intro").hidden = true;
+  $("#intro-gate").hidden = false;
+  $("#entry-art").hidden = true;
+  $("#intro-stars").hidden = true;
+  $("#entry-copy").hidden = true;
+  document.title = "Dimension 3 — A small world after dark";
   history.replaceState(null, "", location.pathname + location.search);
   updateIntroMotion();
-  $("#entry-art").focus();
-  window.scrollTo({ top: 0, behavior: "instant" });
-});
+  $("#start-intro").focus({ preventScroll: true });
+  announce("Intro restarted. Click or press Enter to start with sound.");
+}
+$("#replay-intro").addEventListener("click", restartIntro);
+$("#restart-intro").addEventListener("click", restartIntro);
 
 function loadScene(config) {
   const version = ++mediaVersion;
@@ -323,7 +376,11 @@ sceneImage.addEventListener("error", () => {
   );
 });
 document.addEventListener("visibilitychange", () => {
-  introStars.setActive(!entered && !document.hidden, reducedMotion());
+  introAudio.setHidden(document.hidden);
+  introStars.setActive(
+    !entered && introAudio.phase === "title" && !document.hidden,
+    reducedMotion(),
+  );
   if (document.hidden) {
     sceneVideo.pause();
     introVideo?.pause();
@@ -800,6 +857,7 @@ function renderRoute({ focus = true } = {}) {
   $("#room-eyebrow").textContent = config.eyebrow;
   $("#room-description").textContent = config.description;
   $("#room-back").hidden = room === "home";
+  $("#restart-intro").hidden = room !== "home";
   const actionNames = {
     home: "Explore",
     records: "Listen",

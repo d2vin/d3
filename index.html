@@ -57,11 +57,28 @@
         id="entry-screen"
         aria-labelledby="entry-title"
       >
+        <div id="intro-gate" class="intro-gate">
+          <button
+            id="start-intro"
+            class="intro-start"
+            type="button"
+            aria-label="Start intro with sound"
+          >
+            <span class="intro-start-prompt">Click to start</span>
+            <span class="intro-start-note"
+              >Turn on your sound.<br />Press Enter or tap to begin.</span
+            >
+          </button>
+          <button id="start-muted" class="button button-quiet" type="button">
+            Start without sound
+          </button>
+        </div>
         <button
           class="entry-art"
           id="entry-art"
           type="button"
           aria-label="Enter Dimension 3 through the title screen"
+          hidden
         >
           <img
             src="./assets/entrance.webp"
@@ -71,12 +88,10 @@
             fetchpriority="high"
           />
         </button>
-        <canvas id="intro-stars" aria-hidden="true"></canvas>
-        <div class="entry-copy">
+        <canvas id="intro-stars" aria-hidden="true" hidden></canvas>
+        <div class="entry-copy" id="entry-copy" hidden>
           <h1 id="entry-title" class="sr-only">Dimension 3</h1>
-          <p class="entry-note">
-            Click anywhere or press Enter · Sound optional
-          </p>
+          <p class="entry-note">Click or press Enter to enter D3</p>
         </div>
       </section>
       <div id="world" hidden>
@@ -136,6 +151,14 @@
         <div id="museum-stage" hidden></div>
         <nav class="scene-controls" aria-label="Scene controls">
           <button
+            id="restart-intro"
+            class="button button-quiet"
+            type="button"
+            hidden
+          >
+            Restart intro
+          </button>
+          <button
             id="room-action"
             class="button"
             type="button"
@@ -166,6 +189,19 @@
         </p></noscript
       >
     </main>
+    <audio
+      id="intro-loop-audio"
+      src="./room-welcome-sound.mp3"
+      preload="none"
+      loop
+      hidden
+    ></audio>
+    <audio
+      id="intro-enter-audio"
+      src="./room-welcome-sound1.mp3"
+      preload="none"
+      hidden
+    ></audio>
     <section id="player" class="player-bar" aria-label="Music player" hidden>
       <img
         class="player-art"
