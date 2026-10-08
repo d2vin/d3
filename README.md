@@ -14,7 +14,7 @@ Open http://127.0.0.1:4174. The development server uses Python 3. Serve the repo
 npm run check
 ```
 
-The check runs JavaScript syntax checks and Node's built-in test runner. There are no npm dependencies to install. Tests cover routes and discovery-state recovery, audio-time formatting, weekly rotation, scaled pointer coordinates, all seven museum activities, stroke undo/clear, bounded drawings, and export/cleanup state. The museum adapter tests behavior; browser checks are still needed for rendering, native media and actual downloads.
+The check runs JavaScript syntax checks and Node's built-in test runner. There are no npm dependencies to install. Tests cover routes and discovery-state recovery, audio-time formatting, weekly rotation, cover/fit geometry and pan bounds, scaled pointer coordinates, all seven museum activities, stroke undo/clear, bounded drawings, and export/cleanup state. The museum adapter tests behavior; browser checks are still needed for rendering, native media and actual downloads.
 
 ## Rooms and controls
 
@@ -24,9 +24,9 @@ The check runs JavaScript syntax checks and Node's built-in test runner. There a
 - `#shop`: stories about the existing artwork, a free city postcard and links into the listening room and museum. This is an art collection, not an inventory or checkout.
 - `#observatory`: the hidden city view, unlocked by finding the star. Discoveries, motion and sound preferences are stored only in this browser. Storage failures do not prevent exploring.
 
-First-time visitors see a single entrance. Return visits and direct room links go straight into the world. The Map is always available; the browser's Back/Forward buttons work with room navigation. Replay entrance is in the footer.
+Opening the root URL shows the full-screen animated D3 entrance and starfield. Direct room links go straight into the world. The Map is always available; the browser's Back/Forward buttons work with room navigation. Replay entrance is in the Map.
 
-Motion follows `prefers-reduced-motion` and Save-Data by default and can be changed with the Motion button. Posters remain usable if video playback fails. The site never automatically starts audible music. The scene preserves its source aspect ratio; small screens use full-width destination links instead of overlapping scene entrances. Native dialogs provide keyboard focus management.
+Motion follows `prefers-reduced-motion` and Save-Data by default and can be changed with the Motion button. Posters remain usable if video playback fails. The site never automatically starts audible music. Artwork fills the viewport while preserving its source aspect ratio. On narrow screens, drag the artwork horizontally or focus it and use Left/Right arrows to explore; Home recenters it. Fit art shows the complete composition. The same fit/fill control works for the full-screen museum canvas. Compact navigation and music controls float above the artwork, while room details open in a drawer. Map links remain available when scene entrances are outside the visible crop. Native dialogs provide keyboard focus management.
 
 ## Assets
 
@@ -38,12 +38,13 @@ The five silent video loops total about **7.06 MB**, compared with **147.32 MB**
 
 Before shipping changes, check:
 
-1. First visit, title-art/Enter controls, return visit and Replay entrance.
+1. Root URL, title-art/Enter controls, direct room links and Replay entrance.
 2. City → every room, Map, browser Back/Forward and direct room links.
 3. Music start/pause, seeking, sound-off, volume, room changes and closing the player.
 4. Every museum activity, mouse/touch drawing, keyboard drawing, undo/clear and PNG preview/download.
 5. Shop object dialogs, postcard download, Escape/focus return and hidden-star discovery persistence.
 6. Motion off and reload, keyboard-only navigation, and images remaining visible when motion is off.
-7. Widths of 320, 390, 700, 1024 and 1440 CSS pixels: no horizontal overflow, all controls reachable, no overlapping scene links or player controls. Check portrait and short landscape screens.
+7. Full-screen cover, drag/keyboard pan, Fit art, museum planet reopening and panel focus return.
+8. Widths of 320, 390, 700, 1024 and 1440 CSS pixels: no horizontal overflow, all controls reachable, no overlapping scene links or player controls. Check portrait and short landscape screens.
 
 Test real iOS Safari and Android Chrome before a production launch: the desktop browser verifies responsive layout and pointer behavior, while native download/save behavior can differ on phones.

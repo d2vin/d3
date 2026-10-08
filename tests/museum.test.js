@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EXPERIMENTS, mountMuseum, normalizePoint } from "../museum.js";
+import {
+  EXPERIMENTS,
+  mountMuseum,
+  normalizePoint,
+  visibleCanvasBounds,
+} from "../museum.js";
 
 // A deliberately small DOM/canvas adapter checks interaction state and teardown.
 // Pixel output, layout, native touch handling and real downloads need browser checks.
@@ -12,12 +17,18 @@ function installDOM(t) {
   const frames = new Map();
   const downloads = [];
   const revokedUrls = [];
+  const arcs = [];
+  const cursors = [];
   let frameId = 0;
   const noop = () => {};
   const context = new Proxy(
     {},
     {
-      get: (target, key) => target[key] || noop,
+      get: (target, key) => {
+        if (key === "arc") return (...args) => arcs.push(args);
+        if (key === "strokeRect") return (...args) => cursors.push(args);
+        return target[key] || noop;
+      },
       set: (target, key, value) => {
         target[key] = value;
         return true;
@@ -114,6 +125,8 @@ function installDOM(t) {
     frames,
     downloads,
     revokedUrls,
+    arcs,
+    cursors,
     flush() {
       for (const [id, fn] of [...frames]) {
         frames.delete(id);
@@ -172,6 +185,69 @@ test("the initial planet is selected and untrusted indexes have a valid fallback
     );
     cleanup();
   }
+});
+
+test("the selection API reopens a preserved planet without losing its drawing", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const cleanup = mountMuseum(container);
+  const ui = controls(harness, container);
+  ui.button("Add a mark").click();
+  cleanup.selectPlanet(6);
+  harness.flush();
+  assert.equal(ui.title.textContent, "Night garden");
+  assert.match(ui.canvas.attributes["aria-label"], /0 marks\./);
+  ui.button("Add a mark").click();
+  cleanup.selectPlanet(0);
+  harness.flush();
+  assert.match(ui.canvas.attributes["aria-label"], /1 mark\./);
+  cleanup.selectPlanet(100);
+  harness.flush();
+  assert.equal(ui.title.textContent, "Night garden");
+  assert.match(ui.canvas.attributes["aria-label"], /1 mark\./);
+  cleanup();
+  assert.doesNotThrow(() => cleanup.selectPlanet(0));
+  assert.equal(harness.frames.size, 0);
+});
+
+test("synthetic and keyboard marks stay in the visible crop while pointer coordinates remain exact", (t) => {
+  const harness = installDOM(t);
+  const container = harness.container();
+  const frame = { left: 0, top: 0, width: 400, height: 750 };
+  const canvasRect = { left: -400, top: 0, width: 1200, height: 750 };
+  container.getBoundingClientRect = () => frame;
+  const cleanup = mountMuseum(container);
+  const ui = controls(harness, container);
+  ui.canvas.getBoundingClientRect = () => canvasRect;
+  assert.deepEqual(visibleCanvasBounds(canvasRect, frame), {
+    minX: 1 / 3,
+    maxX: 2 / 3,
+    minY: 0,
+    maxY: 1,
+  });
+  for (let i = 0; i < 8; i += 1) ui.button("Add a mark").click();
+  harness.flush();
+  assert.equal(harness.arcs.length, 8);
+  assert.ok(harness.arcs.every(([x]) => x >= 320 && x <= 640));
+  for (let i = 0; i < 100; i += 1)
+    ui.canvas.emit("keydown", { key: "ArrowLeft" });
+  ui.canvas.emit("keydown", { key: "Enter" });
+  harness.flush();
+  const cursor = harness.cursors.at(-1);
+  assert.ok(cursor[0] >= 320 && cursor[0] + cursor[2] <= 640);
+  ui.canvas.emit("pointerdown", {
+    isPrimary: true,
+    pointerType: "touch",
+    pointerId: 5,
+    clientX: 120,
+    clientY: 250,
+  });
+  ui.canvas.emit("pointerup", { pointerId: 5 });
+  harness.flush();
+  const mark = harness.arcs.at(-1);
+  assert.equal(mark[0], 416);
+  assert.equal(mark[1], 200);
+  cleanup();
 });
 
 test("all seven experiments retain artwork, support touch and keyboard, and undo whole strokes", (t) => {

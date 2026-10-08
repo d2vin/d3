@@ -78,6 +78,31 @@ export function normalizePoint(clientX, clientY, rect) {
   };
 }
 
+/** The visible part of a canvas may be smaller than its rendered cover size. */
+export function visibleCanvasBounds(canvasRect, frameRect) {
+  const left = Math.max(canvasRect.left, frameRect.left);
+  const top = Math.max(canvasRect.top, frameRect.top);
+  const right = Math.min(
+    canvasRect.left + canvasRect.width,
+    frameRect.left + frameRect.width,
+  );
+  const bottom = Math.min(
+    canvasRect.top + canvasRect.height,
+    frameRect.top + frameRect.height,
+  );
+  if (right <= left || bottom <= top)
+    return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
+  const start = normalizePoint(left, top, canvasRect);
+  const end = normalizePoint(right, bottom, canvasRect);
+  return { minX: start.x, maxX: end.x, minY: start.y, maxY: end.y };
+}
+
+function planetIndex(index) {
+  return Number.isFinite(index)
+    ? Math.max(0, Math.min(EXPERIMENTS.length - 1, Math.floor(index)))
+    : 0;
+}
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -205,16 +230,14 @@ function buildBase(id) {
   return canvas;
 }
 
-/** Mount the museum without global listeners, timers, or remote image resources. */
+/** Mount the museum; the returned cleanup also exposes selectPlanet(index). */
 export function mountMuseum(
   container,
   { onDiscover = () => {}, reducedMotion = false, initialPlanet = 0 } = {},
 ) {
   const states = new Map(EXPERIMENTS.map((experiment) => [experiment.id, []]));
   const bases = new Map();
-  const initialIndex = Number.isFinite(initialPlanet)
-    ? Math.max(0, Math.min(EXPERIMENTS.length - 1, Math.floor(initialPlanet)))
-    : 0;
+  const initialIndex = planetIndex(initialPlanet);
   let active = EXPERIMENTS[initialIndex];
   let selectedColor = COLORS[0][1];
   let brushSize = 28;
@@ -267,8 +290,6 @@ export function mountMuseum(
   canvas.height = HEIGHT;
   canvas.tabIndex = 0;
   canvas.style.touchAction = "none";
-  canvas.style.width = "100%";
-  canvas.style.height = "auto";
   canvas.style.display = "block";
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-describedby", helpId);
@@ -284,7 +305,9 @@ export function mountMuseum(
       ),
     );
     container.replaceChildren(root);
-    return () => root.remove();
+    const cleanup = () => root.remove();
+    cleanup.selectPlanet = () => {};
+    return cleanup;
   }
   ctx.imageSmoothingEnabled = false;
   const scratch = document.createElement("canvas");
@@ -322,9 +345,16 @@ export function mountMuseum(
   const addButton = button("Add a mark", () => {
     if (pointerId !== null) return;
     const count = pointCount();
+    const bounds = visibleBounds();
     const point = {
-      x: 0.2 + ((count * 0.381966 + 0.5) % 1) * 0.6,
-      y: 0.2 + ((count * 0.618034 + 0.37) % 1) * 0.6,
+      x:
+        bounds.minX +
+        (0.2 + ((count * 0.381966 + 0.5) % 1) * 0.6) *
+          (bounds.maxX - bounds.minX),
+      y:
+        bounds.minY +
+        (0.3 + ((count * 0.618034 + 0.37) % 1) * 0.4) *
+          (bounds.maxY - bounds.minY),
     };
     keyboardPoint = point;
     addStroke(point);
@@ -406,6 +436,28 @@ export function mountMuseum(
 
   function announce(message) {
     status.textContent = message;
+  }
+
+  function visibleBounds() {
+    return visibleCanvasBounds(
+      canvas.getBoundingClientRect(),
+      container.getBoundingClientRect(),
+    );
+  }
+
+  function clampKeyboardPoint(point, bounds = visibleBounds()) {
+    const marginX = Math.min(18 / WIDTH, (bounds.maxX - bounds.minX) / 4);
+    const marginY = Math.min(18 / HEIGHT, (bounds.maxY - bounds.minY) / 4);
+    return {
+      x: Math.max(
+        bounds.minX + marginX,
+        Math.min(bounds.maxX - marginX, point.x),
+      ),
+      y: Math.max(
+        bounds.minY + marginY,
+        Math.min(bounds.maxY - marginY, point.y),
+      ),
+    };
   }
 
   function selectExperiment(experiment) {
@@ -630,6 +682,7 @@ export function mountMuseum(
     if (disposed) return;
     renderArtwork();
     if (showCursor) {
+      keyboardPoint = clampKeyboardPoint(keyboardPoint);
       ctx.strokeStyle = "#f8e5c5";
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
@@ -727,6 +780,13 @@ export function mountMuseum(
   canvas.addEventListener("lostpointercapture", () => finishStroke());
   canvas.addEventListener("keydown", (event) => {
     if (pointerId !== null) return;
+    const bounds = visibleBounds();
+    keyboardPoint = showCursor
+      ? clampKeyboardPoint(keyboardPoint, bounds)
+      : {
+          x: (bounds.minX + bounds.maxX) / 2,
+          y: (bounds.minY + bounds.maxY) / 2,
+        };
     const directions = {
       ArrowLeft: [-0.035, 0],
       ArrowRight: [0.035, 0],
@@ -736,10 +796,13 @@ export function mountMuseum(
     if (directions[event.key]) {
       event.preventDefault();
       const [dx, dy] = directions[event.key];
-      keyboardPoint = {
-        x: Math.max(0.03, Math.min(0.97, keyboardPoint.x + dx)),
-        y: Math.max(0.05, Math.min(0.95, keyboardPoint.y + dy)),
-      };
+      keyboardPoint = clampKeyboardPoint(
+        {
+          x: keyboardPoint.x + dx * (bounds.maxX - bounds.minX),
+          y: keyboardPoint.y + dy * (bounds.maxY - bounds.minY),
+        },
+        bounds,
+      );
       showCursor = true;
       requestRender();
     } else if (event.key === "Enter" || event.key === " ") {
@@ -756,8 +819,15 @@ export function mountMuseum(
 
   selectExperiment(active);
   render();
-  return () => {
+  const resizeObserver =
+    typeof ResizeObserver === "function"
+      ? new ResizeObserver(requestRender)
+      : null;
+  resizeObserver?.observe(canvas);
+  resizeObserver?.observe(container);
+  const cleanup = () => {
     disposed = true;
+    resizeObserver?.disconnect();
     if (frame !== null) cancelAnimationFrame(frame);
     finishStroke();
     if (exportDialog.open) exportDialog.close();
@@ -766,4 +836,8 @@ export function mountMuseum(
     states.clear();
     root.remove();
   };
+  cleanup.selectPlanet = (index) => {
+    if (!disposed) selectExperiment(EXPERIMENTS[planetIndex(index)]);
+  };
+  return cleanup;
 }

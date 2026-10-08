@@ -71,17 +71,12 @@
             fetchpriority="high"
           />
         </button>
+        <canvas id="intro-stars" aria-hidden="true"></canvas>
         <div class="entry-copy">
-          <p class="eyebrow">Art, sound & things to find</p>
-          <h1 id="entry-title">A small world<br />after dark.</h1>
-          <p>
-            Take a walk through the city. Put on a record. Leave your mark in
-            the museum.
+          <h1 id="entry-title" class="sr-only">Dimension 3</h1>
+          <p class="entry-note">
+            Click anywhere or press Enter · Sound optional
           </p>
-          <button id="enter-button" class="button button-primary" type="button">
-            Enter Dimension 3 <span aria-hidden="true">↗</span>
-          </button>
-          <p class="entry-note">Sound is optional. Curiosity helps.</p>
         </div>
       </section>
       <div id="world" hidden>
@@ -99,38 +94,67 @@
             >← Back to city</a
           >
         </div>
-        <div id="scene" class="scene-frame">
-          <img
-            id="scene-image"
-            class="scene-image"
-            src="./assets/home-dark.webp"
-            width="1137"
-            height="796"
-            alt="A blue-violet pixel city beneath a starry sky"
-            loading="lazy"
-          />
-          <video
-            id="scene-video"
-            class="scene-video"
-            muted
-            loop
-            playsinline
-            preload="none"
-            aria-hidden="true"
-            hidden
-          ></video>
-          <img
-            id="scene-reveal"
-            class="scene-reveal"
-            src=""
-            alt=""
-            aria-hidden="true"
-            hidden
-          />
-          <div id="scene-hotspots"></div>
+        <div
+          id="scene"
+          class="scene-frame"
+          tabindex="0"
+          role="group"
+          aria-label="Room artwork. Drag to look around, or use the left and right arrow keys."
+        >
+          <div class="scene-surface" id="scene-surface">
+            <img
+              id="scene-image"
+              class="scene-image"
+              src="./assets/home-dark.webp"
+              width="1137"
+              height="796"
+              alt="A blue-violet pixel city beneath a starry sky"
+              loading="lazy"
+            />
+            <video
+              id="scene-video"
+              class="scene-video"
+              muted
+              loop
+              playsinline
+              preload="none"
+              aria-hidden="true"
+              hidden
+            ></video>
+            <img
+              id="scene-reveal"
+              class="scene-reveal"
+              src=""
+              alt=""
+              aria-hidden="true"
+              hidden
+            />
+            <div id="scene-hotspots"></div>
+          </div>
         </div>
         <p id="scene-hint" class="scene-hint"></p>
-        <div id="room-content" class="room-content"></div>
+        <div id="museum-stage" hidden></div>
+        <nav class="scene-controls" aria-label="Scene controls">
+          <button
+            id="room-action"
+            class="button"
+            type="button"
+            aria-haspopup="dialog"
+          >
+            Discoveries
+          </button>
+          <button id="close-experiment" class="button" type="button" hidden>
+            ← Museum
+          </button>
+          <button
+            id="art-fit"
+            class="button button-quiet"
+            type="button"
+            aria-pressed="false"
+          >
+            Fit art
+          </button>
+        </nav>
       </div>
       <noscript
         ><p class="no-script">
@@ -142,12 +166,6 @@
         </p></noscript
       >
     </main>
-    <footer class="site-footer">
-      <span>A little world. Yours to explore.</span
-      ><button id="replay-intro" class="button-quiet" type="button" hidden>
-        Replay entrance
-      </button>
-    </footer>
     <section id="player" class="player-bar" aria-label="Music player" hidden>
       <img
         class="player-art"
@@ -182,15 +200,18 @@
           disabled
         /><span id="player-time" class="player-time">0:00 / --:--</span>
       </div>
-      <label class="volume-control"
-        >Volume<input
-          id="volume"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value="0.65"
-      /></label>
+      <details class="volume-menu">
+        <summary aria-label="Adjust volume">Vol</summary>
+        <label class="volume-control"
+          >Volume<input
+            id="volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.65"
+        /></label>
+      </details>
       <button
         id="player-close"
         class="button-quiet"
@@ -200,6 +221,23 @@
         ×
       </button>
     </section>
+    <dialog
+      id="room-panel"
+      class="dialog room-panel"
+      aria-labelledby="panel-title"
+    >
+      <div class="dialog-heading">
+        <h2 id="panel-title">Discoveries</h2>
+        <button
+          class="dialog-close"
+          type="button"
+          aria-label="Close room panel"
+        >
+          ×
+        </button>
+      </div>
+      <div id="room-content" class="room-content"></div>
+    </dialog>
     <dialog id="map-dialog" class="dialog" aria-labelledby="map-title">
       <div class="dialog-heading">
         <div>
@@ -234,6 +272,14 @@
         >
       </nav>
       <p class="map-note">Your discoveries stay in this browser.</p>
+      <button
+        id="replay-intro"
+        class="button button-quiet"
+        type="button"
+        hidden
+      >
+        Replay entrance
+      </button>
     </dialog>
     <dialog id="object-dialog" class="dialog" aria-labelledby="object-title">
       <div class="dialog-heading">

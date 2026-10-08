@@ -4,6 +4,8 @@ import {
   weeklyPlanet,
   formatTime,
 } from "./world-state.js";
+import { sceneLayout } from "./scene-layout.js";
+import { createIntroStars } from "./intro-stars.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storage = {
@@ -37,13 +39,20 @@ let toastTimer;
 let introVideo;
 let audio;
 let audioRequest = 0;
+let fitArt = false;
+let scenePan = 0;
+let panGesture = null;
+let experimentReady = false;
+let experimentRequest = 0;
 const soundButton = $("#sound-toggle");
 const motionButton = $("#motion-toggle");
 const scene = $("#scene");
+const surface = $("#scene-surface");
 const sceneImage = $("#scene-image");
 const sceneVideo = $("#scene-video");
 const revealImage = $("#scene-reveal");
 const content = $("#room-content");
+const introStars = createIntroStars($("#intro-stars"));
 const planets = [
   "Solar study",
   "Red shift",
@@ -158,6 +167,7 @@ function updateSettings() {
   motionButton.textContent = reducedMotion() ? "Motion off" : "Motion on";
   motionButton.setAttribute("aria-pressed", String(!reducedMotion()));
   document.body.dataset.motion = reducedMotion() ? "reduced" : "full";
+  introStars.setActive(!entered && !document.hidden, reducedMotion());
 }
 function setSound(enabled) {
   soundEnabled = enabled;
@@ -185,6 +195,7 @@ motionQuery.addEventListener("change", () => {
 
 // The first frame is usable immediately. Animation is optional and never gates entry.
 function updateIntroMotion() {
+  introStars.setActive(!entered && !document.hidden, reducedMotion());
   if (entered || reducedMotion() || document.hidden) {
     introVideo?.pause();
     if (introVideo) introVideo.hidden = true;
@@ -212,7 +223,7 @@ function updateIntroMotion() {
 }
 function enter({ focus = true } = {}) {
   entered = true;
-  storage.set("visited", "yes");
+  introStars.setActive(false, reducedMotion());
   introVideo?.pause();
   if (introVideo) {
     introVideo.removeAttribute("src");
@@ -226,16 +237,27 @@ function enter({ focus = true } = {}) {
   document.body.classList.add("entered");
   renderRoute({ focus });
 }
-$("#enter-button").addEventListener("click", () => enter());
 $("#entry-art").addEventListener("click", () => enter());
+document.addEventListener("keydown", (event) => {
+  if (
+    !entered &&
+    event.key === "Enter" &&
+    !event.target.closest("button,a,input,select,dialog")
+  )
+    enter();
+});
 $(".skip-link").addEventListener("click", (event) => {
   event.preventDefault();
   $("#main").focus();
   $("#main").scrollIntoView({ block: "start" });
 });
 $("#replay-intro").addEventListener("click", () => {
+  document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  closeExperiment(false);
   cleanupRoom();
+  cleanupRoom = () => {};
   mediaCleanup();
+  mediaVersion++;
   roomVersion++;
   sceneVideo.pause();
   entered = false;
@@ -245,7 +267,7 @@ $("#replay-intro").addEventListener("click", () => {
   $("#replay-intro").hidden = true;
   history.replaceState(null, "", location.pathname + location.search);
   updateIntroMotion();
-  $("#enter-button").focus();
+  $("#entry-art").focus();
   window.scrollTo({ top: 0, behavior: "instant" });
 });
 
@@ -257,10 +279,15 @@ function loadScene(config) {
   sceneVideo.removeAttribute("src");
   sceneVideo.load();
   scene.dataset.room = room;
+  scene.style.setProperty(
+    "--scene-backdrop",
+    `url('./assets/${config.image}.webp')`,
+  );
   sceneImage.src = `./assets/${config.image}.webp`;
   sceneImage.alt = config.alt;
   sceneImage.width = room === "museum" ? 1137 : 800;
   sceneImage.height = room === "museum" ? 796 : 450;
+  layoutScene();
   scene.classList.remove("is-revealing", "lights-on");
   revealImage.hidden = true;
   revealImage.removeAttribute("src");
@@ -292,10 +319,11 @@ function loadScene(config) {
 }
 sceneImage.addEventListener("error", () => {
   announce(
-    "The scene artwork could not load. All room links and activities are still available below.",
+    "The scene artwork could not load. The Map and room controls are still available.",
   );
 });
 document.addEventListener("visibilitychange", () => {
+  introStars.setActive(!entered && !document.hidden, reducedMotion());
   if (document.hidden) {
     sceneVideo.pause();
     introVideo?.pause();
@@ -309,7 +337,7 @@ document.addEventListener("visibilitychange", () => {
 function setReveal(event) {
   if (room !== "home" || !entered || event.target.closest("a,button")) return;
   if (event.pointerType === "touch" && !event.buttons) return;
-  const rect = scene.getBoundingClientRect();
+  const rect = surface.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
   const y = ((event.clientY - rect.top) / rect.height) * 100;
   cancelAnimationFrame(revealFrame);
@@ -323,10 +351,74 @@ function setReveal(event) {
     scene.classList.add("is-revealing");
   });
 }
-scene.addEventListener("pointermove", setReveal);
-scene.addEventListener("pointerdown", setReveal);
+function layoutScene() {
+  const bounds = scene.getBoundingClientRect();
+  const geometry = sceneLayout(
+    bounds.width,
+    bounds.height,
+    room === "museum" ? 1137 / 796 : 16 / 9,
+    fitArt,
+    scenePan,
+  );
+  scenePan = geometry.pan;
+  for (const key of ["width", "height", "left", "top"])
+    surface.style[key] = `${geometry[key]}px`;
+  scene.dataset.pannable = String(geometry.maxPan > 0);
+  return geometry;
+}
+window.addEventListener("resize", layoutScene);
+$("#art-fit").addEventListener("click", () => {
+  fitArt = !fitArt;
+  document.body.classList.toggle("art-fitted", fitArt);
+  $("#art-fit").setAttribute("aria-pressed", String(fitArt));
+  $("#art-fit").textContent = fitArt ? "Fill screen" : "Fit art";
+  scenePan = 0;
+  layoutScene();
+});
+scene.addEventListener("pointerdown", (event) => {
+  if (
+    event.target.closest("a,button") ||
+    !event.isPrimary ||
+    event.button !== 0
+  )
+    return;
+  panGesture = { id: event.pointerId, x: event.clientX, pan: scenePan };
+  scene.setPointerCapture(event.pointerId);
+  setReveal(event);
+});
+scene.addEventListener("pointermove", (event) => {
+  if (panGesture?.id === event.pointerId) {
+    scenePan = panGesture.pan + event.clientX - panGesture.x;
+    layoutScene();
+  }
+  setReveal(event);
+});
+scene.addEventListener("keydown", (event) => {
+  if (
+    event.target !== scene ||
+    !["ArrowLeft", "ArrowRight", "Home"].includes(event.key)
+  )
+    return;
+  event.preventDefault();
+  scenePan =
+    event.key === "Home"
+      ? 0
+      : scenePan + (event.key === "ArrowLeft" ? 80 : -80);
+  layoutScene();
+});
+scene.addEventListener("focusin", (event) => {
+  const target = event.target.closest(".scene-hotspot");
+  if (!target) return;
+  const bounds = scene.getBoundingClientRect(),
+    rect = target.getBoundingClientRect();
+  if (rect.left < bounds.left + 16) scenePan += bounds.left + 16 - rect.left;
+  else if (rect.right > bounds.right - 16)
+    scenePan -= rect.right - bounds.right + 16;
+  layoutScene();
+});
 for (const name of ["pointerleave", "pointerup", "pointercancel"])
   scene.addEventListener(name, () => {
+    panGesture = null;
     cancelAnimationFrame(revealFrame);
     scene.classList.remove("is-revealing");
   });
@@ -391,8 +483,7 @@ function addDiscoveryPanel() {
   updateDiscoveries();
 }
 function renderHome() {
-  $("#scene-hint").textContent =
-    "Move or touch the artwork to reveal its light. Choose a door below to step inside.";
+  $("#scene-hint").textContent = "Move to reveal light · Drag to look around";
   addHotspot({ name: "Museum", icon: "✳", x: 45, y: 63, href: "#museum" });
   addHotspot({
     name: "Curiosity shop",
@@ -468,8 +559,14 @@ function renderHome() {
   addDiscoveryPanel();
 }
 function renderRecords() {
-  $("#scene-hint").textContent =
-    "Choose the sleeve below to start listening. Your music can follow you into the other rooms.";
+  $("#scene-hint").textContent = "Stay a while. Put something on.";
+  addHotspot({
+    name: "Play the record store session",
+    icon: "◎",
+    x: 40,
+    y: 62,
+    action: () => togglePlayback(),
+  });
   const panel = el("section", "feature-panel record-panel");
   const sleeve = button("", () => togglePlayback(), "record-sleeve");
   sleeve.setAttribute("aria-label", "Play or pause the record store session");
@@ -514,36 +611,81 @@ function renderRecords() {
   content.append(panel);
   syncPlayer();
 }
-async function renderMuseum(version) {
-  $("#scene-hint").textContent =
-    "The collection continues below. Choose a planet, then tap, draw, or use the keyboard.";
-  const mount = el("section", "museum-workbench");
-  const heading = el("div", "room-intro");
-  heading.append(
-    el("h2", "", "Leave a little of yourself here"),
-    el(
-      "p",
-      "",
-      `This week’s featured study: ${planets[weeklyPlanet()]}. Every planet is open to explore.`,
-    ),
+function renderMuseum() {
+  $("#scene-hint").textContent = "Touch a planet. Make a little world.";
+  const positions = [
+    [21, 25],
+    [58, 34],
+    [41, 16],
+    [42, 35],
+    [58, 17],
+    [72, 30],
+    [90, 25],
+  ];
+  positions.forEach(([x, y], index) =>
+    addHotspot({
+      name: planets[index],
+      icon: "◉",
+      x,
+      y,
+      action: () => openExperiment(index),
+    }),
   );
-  content.append(heading, mount);
+}
+async function openExperiment(initialPlanet) {
+  const version = roomVersion;
+  const request = ++experimentRequest;
+  const mount = $("#museum-stage");
+  $("#room-panel").close();
+  mount.hidden = false;
+  scene.inert = true;
+  document.body.classList.add("experiment-open");
+  $("#close-experiment").hidden = false;
+  $("#room-action").hidden = true;
+  if (experimentReady) {
+    if (initialPlanet !== undefined) cleanupRoom.selectPlanet(initialPlanet);
+    $("#close-experiment").focus();
+    return;
+  }
+  mount.replaceChildren(el("p", "experiment-loading", "Opening the study…"));
   try {
     const { mountMuseum } = await import("./museum.js");
-    if (version !== roomVersion || room !== "museum") return;
+    if (
+      version !== roomVersion ||
+      request !== experimentRequest ||
+      room !== "museum"
+    )
+      return;
     cleanupRoom = mountMuseum(mount, {
       onDiscover: () => discover("created"),
       reducedMotion: reducedMotion(),
-      initialPlanet: weeklyPlanet(),
+      initialPlanet: initialPlanet ?? weeklyPlanet(),
     });
+    experimentReady = true;
+    if (document.body.classList.contains("experiment-open"))
+      $("#close-experiment").focus();
   } catch {
-    if (version !== roomVersion) return;
-    mount.append(
+    if (version !== roomVersion || request !== experimentRequest) return;
+    mount.replaceChildren(
       el("p", "", "The experiments could not load."),
-      button("Try again", () => renderRoute({ focus: false })),
+      button("Try again", () => openExperiment(initialPlanet)),
     );
   }
 }
+function closeExperiment(focus = true) {
+  experimentRequest++;
+  scene.inert = false;
+  $("#museum-stage").hidden = true;
+  document.body.classList.remove("experiment-open");
+  $("#close-experiment").hidden = true;
+  $("#room-action").hidden = false;
+  if (focus) $("#room-action").focus();
+}
+$("#close-experiment").addEventListener("click", () => closeExperiment());
+$("#room-action").addEventListener("click", () => {
+  if (room === "museum") openExperiment();
+  else $("#room-panel").showModal();
+});
 const objects = {
   city: {
     title: "The city, in another light",
@@ -572,8 +714,14 @@ const objects = {
   },
 };
 function renderShop() {
-  $("#scene-hint").textContent =
-    "Select an object below to see its story. The city postcard is free to keep.";
+  $("#scene-hint").textContent = "Something on the shelf catches your eye.";
+  addHotspot({
+    name: "Look at the objects",
+    icon: "◇",
+    x: 61,
+    y: 56,
+    action: () => $("#room-panel").showModal(),
+  });
   const grid = el("div", "card-grid objects-grid");
   for (const [id, obj] of Object.entries(objects)) {
     const card = button("", () => openObject(id), "object-card");
@@ -591,6 +739,8 @@ function renderShop() {
   content.append(grid);
 }
 function openObject(id) {
+  $("#room-panel").close();
+  $("#room-action").focus({ preventScroll: true });
   const obj = objects[id];
   $("#object-title").textContent = obj.title;
   $("#object-description").textContent = obj.description;
@@ -633,12 +783,16 @@ function renderRoute({ focus = true } = {}) {
     return;
   }
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  closeExperiment(false);
   cleanupRoom();
   cleanupRoom = () => {};
   cancelAnimationFrame(revealFrame);
   const next = readRoute(location.hash, discovered.has("signal"));
   if (location.hash !== `#${next}`) history.replaceState(null, "", `#${next}`);
   room = next;
+  scenePan = 0;
+  experimentReady = false;
+  $("#museum-stage").replaceChildren();
   roomVersion++;
   const config = rooms[room];
   document.title = `${config.title} — Dimension 3`;
@@ -646,12 +800,23 @@ function renderRoute({ focus = true } = {}) {
   $("#room-eyebrow").textContent = config.eyebrow;
   $("#room-description").textContent = config.description;
   $("#room-back").hidden = room === "home";
+  const actionNames = {
+    home: "Explore",
+    records: "Listen",
+    museum: "Make art",
+    shop: "Objects",
+    observatory: "Postcard",
+  };
+  $("#room-action").textContent = actionNames[room];
+  $("#panel-title").textContent = room === "home" ? "Explore D3" : config.title;
+  if (room === "museum") $("#room-action").removeAttribute("aria-haspopup");
+  else $("#room-action").setAttribute("aria-haspopup", "dialog");
   $("#scene-hotspots").replaceChildren();
   content.replaceChildren();
   loadScene(config);
   if (room === "home") renderHome();
   else if (room === "records") renderRecords();
-  else if (room === "museum") renderMuseum(roomVersion);
+  else if (room === "museum") renderMuseum();
   else if (room === "shop") renderShop();
   else renderObservatory();
   document.querySelectorAll(".map-grid a").forEach((a) => {
@@ -688,7 +853,10 @@ for (const dialog of document.querySelectorAll("dialog")) {
     if (a.hash && a.hash === location.hash) {
       event.preventDefault();
       if (!entered) enter();
-      else $("#room-title").focus();
+      else {
+        if (room === "museum") closeExperiment(false);
+        $("#room-title").focus();
+      }
     }
   });
 }
@@ -789,10 +957,14 @@ $("#player-close").addEventListener("click", () => {
   audio?.pause();
   $("#player").hidden = true;
   document.body.classList.remove("has-player");
-  ($("#record-play") || $("#sound-toggle")).focus({ preventScroll: true });
+  const focusTarget =
+    $("#room-panel").open && $("#record-play")
+      ? $("#record-play")
+      : soundButton;
+  focusTarget.focus({ preventScroll: true });
 });
 
 updateSettings();
 updateDiscoveries();
-if (location.hash || storage.get("visited") === "yes") enter({ focus: false });
+if (location.hash) enter({ focus: false });
 else updateIntroMotion();
