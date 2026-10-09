@@ -331,3 +331,214 @@ test("throwing or rejected room updates cannot leave the fallback faded out", as
     assertCleared(state);
   }
 });
+
+test("a live outgoing layer keeps its media active over the rendered destination until the full fade finishes", async () => {
+  const state = setup();
+  const decoded = deferred();
+  const layer = Object.assign(state.element, {
+    hidden: false,
+    videoPlaying: true,
+    canvasRunning: true,
+  });
+  let rendered = false;
+  let cleanups = 0;
+  const completed = state.controller.run(
+    () => {
+      rendered = true;
+      return decoded.promise;
+    },
+    {
+      duration: 1200,
+      liveElement: layer,
+      onFinish() {
+        cleanups++;
+        layer.hidden = true;
+        layer.videoPlaying = false;
+        layer.canvasRunning = false;
+      },
+    },
+  );
+  assert.equal(rendered, true);
+  assert.equal(state.markers.get("data-scene-transition"), "live");
+  assert.equal(state.nativeTransitions.length, 0);
+  assert.equal(state.animations.length, 0);
+  assert.equal(layer.hidden, false);
+  assert.equal(layer.videoPlaying, true);
+  assert.equal(layer.canvasRunning, true);
+  decoded.resolve();
+  await flush();
+  assert.deepEqual(state.animations[0].frames, [
+    { opacity: 1 },
+    { opacity: 0 },
+  ]);
+  assert.equal(state.animations[0].options.duration, 1200);
+  assert.equal(layer.hidden, false);
+  assert.equal(layer.videoPlaying, true);
+  assert.equal(layer.canvasRunning, true);
+  assert.equal(cleanups, 0);
+  state.animations[0].done.resolve();
+  await completed;
+  assert.equal(layer.hidden, true);
+  assert.equal(layer.videoPlaying, false);
+  assert.equal(layer.canvasRunning, false);
+  assert.equal(cleanups, 1);
+  assertCleared(state);
+});
+
+test("cancelling or finishing a live fade hides the outgoing layer before removing its opacity effect", async () => {
+  for (const operation of ["cancel", "finish"]) {
+    const state = setup();
+    const layer = Object.assign(state.element, { hidden: false });
+    let cleanups = 0;
+    const completed = state.controller.run(() => {}, {
+      liveElement: layer,
+      onFinish() {
+        cleanups++;
+        layer.hidden = true;
+      },
+    });
+    await flush();
+    const animation = state.animations[0];
+    const cancelAnimation = animation.cancel.bind(animation);
+    animation.cancel = () => {
+      assert.equal(layer.hidden, true);
+      cancelAnimation();
+    };
+    const stopped = state.controller[operation]();
+    assert.equal(layer.hidden, true);
+    assert.equal(cleanups, 1);
+    await Promise.all([completed, stopped]);
+    await state.controller.cancel();
+    await state.controller.finish();
+    assert.equal(cleanups, 1);
+    assertCleared(state);
+  }
+});
+
+test("superseding a live fade while its poster is pending cleans it without altering the newer transition", async () => {
+  const state = setup();
+  const decoded = deferred();
+  let cleanups = 0;
+  const first = state.controller.run(() => decoded.promise, {
+    liveElement: state.element,
+    onFinish: () => cleanups++,
+  });
+  const latest = state.controller.run(() => {});
+  assert.equal(cleanups, 1);
+  assert.equal(state.markers.get("data-scene-transition"), "native");
+  decoded.resolve();
+  await first;
+  await flush();
+  assert.equal(cleanups, 1);
+  assert.equal(state.animations.length, 0);
+  assert.equal(state.markers.get("data-scene-transition"), "native");
+  const transition = state.nativeTransitions[0];
+  await transition.update();
+  transition.finishedResult.resolve();
+  await latest;
+  assertCleared(state);
+});
+
+test("finish cleans a live outgoing layer immediately even while poster decode is pending", async () => {
+  const state = setup();
+  const decoded = deferred();
+  let renders = 0;
+  let cleanups = 0;
+  const completed = state.controller.run(
+    () => {
+      renders++;
+      return decoded.promise;
+    },
+    {
+      liveElement: state.element,
+      onFinish: () => cleanups++,
+    },
+  );
+  const stopped = state.controller.finish();
+  assert.equal(renders, 1);
+  assert.equal(cleanups, 1);
+  assertCleared(state);
+  decoded.resolve();
+  await Promise.all([completed, stopped]);
+  assert.equal(cleanups, 1);
+  assert.equal(state.animations.length, 0);
+});
+
+test("reduced motion, disabled animation and missing live animation APIs clean the layer synchronously", async () => {
+  for (const options of [
+    { setup: { allowed: false }, run: {} },
+    { setup: {}, run: { animate: false } },
+    { setup: { webAnimations: false }, run: {} },
+  ]) {
+    const state = setup(options.setup);
+    const decoded = deferred();
+    const events = [];
+    const completed = state.controller.run(
+      () => {
+        events.push("render");
+        return decoded.promise;
+      },
+      {
+        ...options.run,
+        liveElement: state.element,
+        onFinish: () => events.push("cleanup"),
+      },
+    );
+    assert.deepEqual(events, ["render", "cleanup"]);
+    assert.equal(state.nativeTransitions.length, 0);
+    assert.equal(state.animations.length, 0);
+    decoded.resolve();
+    await completed;
+    assertCleared(state);
+  }
+});
+
+test("live animation failures clean once and never leave an outgoing layer blocking the destination", async () => {
+  for (const failure of ["throw", "reject"]) {
+    const state = setup();
+    const error = new Error("Live animation interrupted");
+    if (failure === "throw") {
+      state.element.animate = () => {
+        throw error;
+      };
+    }
+    let cleanups = 0;
+    const completed = state.controller.run(() => {}, {
+      liveElement: state.element,
+      onFinish: () => cleanups++,
+    });
+    await flush();
+    if (failure === "reject") state.animations[0].done.reject(error);
+    await completed;
+    assert.equal(cleanups, 1);
+    assert.deepEqual(state.errors, [error]);
+    assertCleared(state);
+  }
+});
+
+test("cleanup runs only for applied updates, with callback failures safely observed", async () => {
+  const state = setup();
+  let cleanups = 0;
+  const notApplied = state.controller.run(() => {}, {
+    onFinish: () => cleanups++,
+  });
+  await state.controller.cancel();
+  await notApplied;
+  await state.nativeTransitions[0].update();
+  assert.equal(cleanups, 0);
+  for (const asynchronous of [false, true]) {
+    const error = new Error("Cleanup failed");
+    await state.controller.run(() => {}, {
+      animate: false,
+      liveElement: state.element,
+      onFinish() {
+        cleanups++;
+        if (asynchronous) return Promise.reject(error);
+        throw error;
+      },
+    });
+    assert.ok(state.errors.includes(error));
+  }
+  assert.equal(cleanups, 2);
+  assertCleared(state);
+});

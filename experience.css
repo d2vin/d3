@@ -329,6 +329,12 @@ input[type="range"]:focus-visible {
 .entry-screen {
   background: #000;
   isolation: isolate;
+  /* Keep the playing intro above the city until its live fade finishes. */
+  z-index: 25;
+}
+.entry-screen[inert],
+.intro-gate[inert] {
+  pointer-events: none;
 }
 #intro-stars {
   position: absolute;
