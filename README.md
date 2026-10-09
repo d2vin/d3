@@ -14,7 +14,7 @@ Open http://127.0.0.1:4174. The development server uses Python 3. Serve the repo
 npm run check
 ```
 
-The check runs JavaScript syntax checks and Node's built-in test runner. There are no npm dependencies to install. Tests cover routes and discovery-state recovery, audio-time formatting, weekly rotation, cover/fit geometry and pan bounds, scaled pointer coordinates, all seven museum activities, stroke undo/clear, bounded drawings, and export/cleanup state. The museum adapter tests behavior; browser checks are still needed for rendering, native media and actual downloads.
+The check runs JavaScript syntax checks and Node's built-in test runner. There are no npm dependencies to install. Tests cover routes and discovery-state recovery, audio-time formatting, weekly rotation, cover/fit geometry and pan bounds, scaled pointer coordinates, all seven museum activities, stroke undo/clear, bounded drawings, export/cleanup state, and scene-transition cancellation, reduced motion and fallback behavior. The museum adapter tests behavior; browser checks are still needed for rendering, native media and actual downloads.
 
 ## Rooms and controls
 
@@ -25,6 +25,8 @@ The check runs JavaScript syntax checks and Node's built-in test runner. There a
 - `#observatory`: the hidden city view, unlocked by finding the star. Discoveries, motion and sound preferences are stored only in this browser. Storage failures do not prevent exploring.
 
 Opening the root URL shows a click-to-start sound prompt. The first click (or Enter) starts the full-screen D3 title, starfield, and original intro loop; the second click enters the city with the original transition sound. Start without sound and the Sound toggle provide muted access. Direct room links go straight into the world without starting audio. Restart intro is visible on the home screen and Replay entrance is also in the Map; both stop existing music and reset the full two-step sequence. The browser's Back/Forward buttons work with room navigation.
+
+Rooms dissolve into one another over 700 ms, and the final intro click fades into the city over one second. Native view transitions preserve the outgoing artwork, including live paintings and the current pan position, while fixed navigation and music controls remain steady. Older browsers use an opacity fade. Motion off skips transitions; rapid navigation follows the latest destination, and hiding the page finishes a pending transition. The fade waits briefly for the destination poster to decode, without waiting for its video.
 
 Motion follows `prefers-reduced-motion` and Save-Data by default and can be changed with the Motion button. Posters remain usable if video playback fails. The site never automatically starts audible music. Artwork fills the viewport while preserving its source aspect ratio. On narrow screens, drag the artwork horizontally or focus it and use Left/Right arrows to explore; Home recenters it. Fit art shows the complete composition. The same fit/fill control works for the full-screen museum canvas. Compact navigation and music controls float above the artwork, while room details open in a drawer. Map links remain available when scene entrances are outside the visible crop. Native dialogs provide keyboard focus management.
 
@@ -39,7 +41,7 @@ The five silent video loops total about **7.06 MB**, compared with **147.32 MB**
 Before shipping changes, check:
 
 1. Root URL: silent sound prompt → click/Enter starts intro loop → second click/Enter stops loop and plays transition. Test muted entry, Sound toggle, home Restart intro, Map replay, and silent direct room links.
-2. City → every room, Map, browser Back/Forward and direct room links.
+2. City → every room, Map, browser Back/Forward and direct room links. Check the room and intro fades, quick successive navigation, restarting the intro during a fade, and switching Motion off mid-transition. Direct room links should render immediately.
 3. Music start/pause, seeking, sound-off, volume, room changes and closing the player.
 4. All seven original planet hover/focus/tap sounds, re-entry replay, Sound off, and room/page cleanup. Original Red/Yellow artwork and animated jagged cutouts, persistent stamps versus hover preview, yellow size changes, red fixed dots, right-click/Hue, and motion-off posters. Also check every other museum activity, touch/keyboard drawing, undo/clear and PNG preview/download.
 5. Shop object dialogs, postcard download, Escape/focus return and hidden-star discovery persistence.
