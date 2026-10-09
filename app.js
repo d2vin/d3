@@ -452,7 +452,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 function setReveal(event) {
-  if (room !== "home" || !entered || event.target.closest("a,button")) return;
+  if (room !== "home" || !entered) return;
   if (event.pointerType === "touch" && !event.buttons) return;
   const rect = surface.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
