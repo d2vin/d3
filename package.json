@@ -1,0 +1,10 @@
+{
+  "name": "dimension-three",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 4174 --bind 127.0.0.1",
+    "test": "node --test",
+    "check": "node --check app.js && node --check museum.js && node --check legacy-painting.js && node --check intro-stars.js && node --check intro-audio.js && node --check planet-audio.js && node --check scene-layout.js && node --test"
+  }
+}

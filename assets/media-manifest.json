@@ -1,0 +1,67 @@
+{
+  "home-dark": {
+    "source": "homedark.gif",
+    "sourceBytes": 47198773,
+    "video": "assets/home-dark.mp4",
+    "videoBytes": 1501099,
+    "poster": "assets/home-dark.webp",
+    "posterBytes": 177726
+  },
+  "home-light": {
+    "source": "homelight.gif",
+    "sourceBytes": 43575910,
+    "video": "assets/home-light.mp4",
+    "videoBytes": 1751005,
+    "poster": "assets/home-light.webp",
+    "posterBytes": 172752
+  },
+  "record-store": {
+    "source": "recordstore.gif",
+    "sourceBytes": 35531840,
+    "video": "assets/record-store.mp4",
+    "videoBytes": 2404037,
+    "poster": "assets/record-store.webp",
+    "posterBytes": 185328
+  },
+  "shop": {
+    "source": "shop.gif",
+    "sourceBytes": 9529567,
+    "video": "assets/shop.mp4",
+    "videoBytes": 782926,
+    "poster": "assets/shop.webp",
+    "posterBytes": 170664
+  },
+  "entrance": {
+    "source": "LoadingScreen.gif",
+    "sourceBytes": 11486053,
+    "video": "assets/entrance.mp4",
+    "videoBytes": 615936,
+    "poster": "assets/entrance.webp",
+    "posterBytes": 87584
+  },
+  "museum": {
+    "source": "backround-museum.gif",
+    "poster": "assets/museum.webp",
+    "posterBytes": 12606
+  },
+  "color-room": {
+    "source": "color-backround.gif",
+    "poster": "assets/color-room.webp",
+    "posterBytes": 12616
+  },
+  "yellow-room": {
+    "source": "yellowbackground.gif",
+    "poster": "assets/yellow-room.webp",
+    "posterBytes": 2144
+  },
+  "red-planet": {
+    "source": "redplanet1.gif",
+    "poster": "assets/red-planet.webp",
+    "posterBytes": 446
+  },
+  "yellow-planet": {
+    "source": "yellowplanet1.gif",
+    "poster": "assets/yellow-planet.webp",
+    "posterBytes": 212
+  }
+}
