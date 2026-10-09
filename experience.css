@@ -516,6 +516,10 @@ input[type="range"]:focus-visible {
 .scene-reveal.is-revealing {
   opacity: 1;
 }
+.scene-frame[data-room="museum"] .scene-reveal {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 .scene-frame.lights-on .scene-reveal {
   opacity: 1;
   -webkit-mask-image: none;

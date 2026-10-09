@@ -9,6 +9,7 @@ import { createIntroStars } from "./intro-stars.js";
 import { createIntroAudio } from "./intro-audio.js";
 import { createPlanetAudio } from "./planet-audio.js";
 import { createSceneTransitions } from "./scene-transitions.js";
+import { jaggedCirclePath } from "./legacy-painting.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storage = {
@@ -401,6 +402,7 @@ function loadScene(config) {
   layoutScene();
   scene.classList.remove("is-revealing", "lights-on");
   revealImage.hidden = true;
+  revealImage.style.removeProperty("clip-path");
   revealImage.removeAttribute("src");
   const lightSwitch = $("#city-lights");
   if (lightSwitch) {
@@ -452,21 +454,43 @@ document.addEventListener("visibilitychange", () => {
 });
 
 function setReveal(event) {
-  if (room !== "home" || !entered) return;
+  if (!["home", "museum"].includes(room) || !entered || scene.inert) return;
   if (event.pointerType === "touch" && !event.buttons) return;
   const rect = surface.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width) * 100;
-  const y = ((event.clientY - rect.top) / rect.height) * 100;
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const revealRoom = room;
+  let frame = 0;
   cancelAnimationFrame(revealFrame);
-  revealFrame = requestAnimationFrame(() => {
-    if (room !== "home") return;
-    if (!revealImage.getAttribute("src"))
-      revealImage.src = "./assets/home-light.webp";
-    revealImage.hidden = false;
-    scene.style.setProperty("--reveal-x", `${x}%`);
-    scene.style.setProperty("--reveal-y", `${y}%`);
-    scene.classList.add("is-revealing");
-  });
+  function drawReveal() {
+    if (!entered || room !== revealRoom || scene.inert || document.hidden) return;
+    if (frame === 0) {
+      if (!revealImage.getAttribute("src"))
+        revealImage.src =
+          room === "museum"
+            ? "./assets/color-room.webp"
+            : "./assets/home-light.webp";
+      revealImage.hidden = false;
+      scene.style.setProperty("--reveal-x", `${(x / rect.width) * 100}%`);
+      scene.style.setProperty("--reveal-y", `${(y / rect.height) * 100}%`);
+      scene.classList.add("is-revealing");
+    }
+    if (room === "museum") {
+      const still = reducedMotion();
+      if (frame % 10 === 0 || still) {
+        const jitter = () => (frame && !still ? Math.random() * 4 - 2 : 0);
+        revealImage.style.clipPath = `path("${jaggedCirclePath(x + jitter(), y + jitter(), 40)}")`;
+      }
+      frame++;
+      if (!still) revealFrame = requestAnimationFrame(drawReveal);
+    }
+  }
+  revealFrame = requestAnimationFrame(drawReveal);
+}
+
+function clearReveal() {
+  cancelAnimationFrame(revealFrame);
+  scene.classList.remove("is-revealing");
 }
 function layoutScene() {
   const bounds = scene.getBoundingClientRect();
@@ -489,8 +513,12 @@ function layoutScene() {
   scene.dataset.pannable = String(geometry.maxPan > 0);
   return geometry;
 }
-window.addEventListener("resize", layoutScene);
+window.addEventListener("resize", () => {
+  clearReveal();
+  layoutScene();
+});
 $("#art-fit").addEventListener("click", () => {
+  clearReveal();
   fitArt = !fitArt;
   document.body.classList.toggle("art-fitted", fitArt);
   $("#art-fit").setAttribute("aria-pressed", String(fitArt));
@@ -523,6 +551,7 @@ scene.addEventListener("keydown", (event) => {
   )
     return;
   event.preventDefault();
+  clearReveal();
   scenePan =
     event.key === "Home"
       ? 0
@@ -540,10 +569,10 @@ scene.addEventListener("focusin", (event) => {
   layoutScene();
 });
 for (const name of ["pointerleave", "pointerup", "pointercancel"])
-  scene.addEventListener(name, () => {
+  scene.addEventListener(name, (event) => {
     panGesture = null;
-    cancelAnimationFrame(revealFrame);
-    scene.classList.remove("is-revealing");
+    if (name === "pointerup" && event.pointerType === "mouse") return;
+    clearReveal();
   });
 
 function addHotspot({ name, icon, x, y, href, action, secret = false }) {
@@ -784,6 +813,7 @@ function renderMuseum() {
   });
 }
 async function openExperiment(initialPlanet) {
+  clearReveal();
   const version = roomVersion;
   const request = ++experimentRequest;
   const mount = $("#museum-stage");
