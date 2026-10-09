@@ -1165,6 +1165,13 @@ input[type="range"]::-moz-range-thumb {
 .experiment[data-legacy="true"] {
   background: #000;
 }
+.experiment[data-legacy="true"] .experiment-canvas {
+  width: var(--museum-art-width);
+  height: var(--museum-art-height);
+  left: var(--museum-art-left);
+  top: var(--museum-art-top);
+  transform: none;
+}
 .experiment[data-legacy="true"] canvas.experiment-canvas {
   background: transparent;
 }

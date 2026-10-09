@@ -422,8 +422,14 @@ function layoutScene() {
     scenePan,
   );
   scenePan = geometry.pan;
-  for (const key of ["width", "height", "left", "top"])
+  for (const key of ["width", "height", "left", "top"]) {
     surface.style[key] = `${geometry[key]}px`;
+    // The original planet paintings share the museum's composition and pan.
+    $("#museum-stage").style.setProperty(
+      `--museum-art-${key}`,
+      `${geometry[key]}px`,
+    );
+  }
   scene.dataset.pannable = String(geometry.maxPan > 0);
   return geometry;
 }
