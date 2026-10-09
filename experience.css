@@ -277,6 +277,55 @@ input[type="range"]:focus-visible {
 #main:focus {
   outline: none;
 }
+/* Dissolve the artwork while the fixed world controls and player stay put. */
+:root {
+  view-transition-name: none;
+}
+#main {
+  view-transition-name: world;
+}
+.site-header {
+  view-transition-name: world-controls;
+}
+#player {
+  view-transition-name: music-player;
+}
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(world) {
+  animation: none;
+  z-index: 0;
+}
+::view-transition-old(world) {
+  animation: scene-fade-out var(--scene-fade-duration, 700ms) ease-in-out both;
+}
+::view-transition-new(world) {
+  animation: scene-fade-in var(--scene-fade-duration, 700ms) ease-in-out both;
+}
+::view-transition-group(world-controls),
+::view-transition-group(music-player) {
+  animation: none;
+  z-index: 2;
+}
+::view-transition-old(world-controls),
+::view-transition-old(music-player) {
+  display: none;
+}
+::view-transition-new(world-controls),
+::view-transition-new(music-player) {
+  animation: none;
+}
+@keyframes scene-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes scene-fade-in {
+  from {
+    opacity: 0;
+  }
+}
 .entry-screen {
   background: #000;
   isolation: isolate;

@@ -8,6 +8,7 @@ import { sceneLayout } from "./scene-layout.js";
 import { createIntroStars } from "./intro-stars.js";
 import { createIntroAudio } from "./intro-audio.js";
 import { createPlanetAudio } from "./planet-audio.js";
+import { createSceneTransitions } from "./scene-transitions.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storage = {
@@ -54,6 +55,10 @@ const sceneImage = $("#scene-image");
 const sceneVideo = $("#scene-video");
 const revealImage = $("#scene-reveal");
 const content = $("#room-content");
+const sceneTransitions = createSceneTransitions({
+  element: $("#main"),
+  canAnimate: () => !reducedMotion() && !document.hidden,
+});
 const introStars = createIntroStars($("#intro-stars"));
 const introAudio = createIntroAudio({
   loop: $("#intro-loop-audio"),
@@ -196,6 +201,7 @@ function reducedMotion() {
     : motionQuery.matches || Boolean(navigator.connection?.saveData);
 }
 function updateSettings() {
+  if (reducedMotion()) sceneTransitions.finish();
   soundButton.textContent = soundEnabled ? "Sound on" : "Sound off";
   soundButton.setAttribute("aria-pressed", String(soundEnabled));
   motionButton.textContent = reducedMotion() ? "Motion off" : "Motion on";
@@ -284,9 +290,13 @@ function startIntro(enabled = true) {
 }
 function enter({ focus = true } = {}) {
   if (entered) return;
+  const fromTitle = introAudio.phase === "title";
   // Keep play() in the click/Enter call stack. Direct room links stay silent.
   introAudio.enter();
   entered = true;
+  renderRoute({ focus, animate: fromTitle, duration: 1000 });
+}
+function showWorld() {
   introStars.setActive(false, reducedMotion());
   introVideo?.pause();
   if (introVideo) {
@@ -299,7 +309,6 @@ function enter({ focus = true } = {}) {
   $("#world").hidden = false;
   $("#replay-intro").hidden = false;
   document.body.classList.add("entered");
-  renderRoute({ focus });
 }
 $("#start-intro").addEventListener("click", () => startIntro());
 $("#start-muted").addEventListener("click", () => startIntro(false));
@@ -321,6 +330,7 @@ $(".skip-link").addEventListener("click", (event) => {
   $("#main").scrollIntoView({ block: "start" });
 });
 function restartIntro() {
+  sceneTransitions.cancel();
   planetAudio.stop();
   introAudio.reset();
   audioRequest++;
@@ -407,6 +417,7 @@ sceneImage.addEventListener("error", () => {
   );
 });
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden) sceneTransitions.finish();
   introAudio.setHidden(document.hidden);
   if (document.hidden) planetAudio.stop();
   cleanupRoom.setActive?.(
@@ -906,18 +917,43 @@ function renderObservatory() {
   content.append(panel);
   addDiscoveryPanel();
 }
-function renderRoute({ focus = true } = {}) {
+function renderRoute({ focus = true, animate = true, duration = 700 } = {}) {
   if (!entered) {
     enter({ focus });
     return;
   }
   planetAudio.stop();
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  const next = readRoute(location.hash, discovered.has("signal"));
+  sceneTransitions.run(
+    () => {
+      showWorld();
+      commitRoute(next, { focus });
+      return waitForScenePoster();
+    },
+    { animate, duration },
+  );
+}
+function waitForScenePoster() {
+  // Hold the outgoing artwork until the small poster is decoded, not the video.
+  // A broken/slow image must never trap navigation behind a transition.
+  if (!sceneImage.decode) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, 1200);
+    sceneImage
+      .decode()
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+  });
+}
+function commitRoute(next, { focus }) {
   closeExperiment(false);
   cleanupRoom();
   cleanupRoom = () => {};
   cancelAnimationFrame(revealFrame);
-  const next = readRoute(location.hash, discovered.has("signal"));
   if (location.hash !== `#${next}`) history.replaceState(null, "", `#${next}`);
   room = next;
   scenePan = 0;
