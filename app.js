@@ -7,6 +7,7 @@ import {
 import { sceneLayout } from "./scene-layout.js";
 import { createIntroStars } from "./intro-stars.js";
 import { createIntroAudio } from "./intro-audio.js";
+import { createPlanetAudio } from "./planet-audio.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storage = {
@@ -60,6 +61,32 @@ const introAudio = createIntroAudio({
   onError: () =>
     toast("The intro sound couldn't play. Restart the intro to try again."),
 });
+const planetAudio = createPlanetAudio({
+  onPlaying(index, playing) {
+    document
+      .querySelector(`[data-planet-sound="${index}"]`)
+      ?.classList.toggle("is-sounding", playing);
+  },
+});
+planetAudio.setEnabled(soundEnabled);
+// Unlock during a gesture so later hover sounds can play without another click.
+for (const event of ["pointerdown", "pointerup"])
+  document.addEventListener(
+    event,
+    (input) => {
+      if (input.type === "pointerup" || input.pointerType !== "touch")
+        planetAudio.unlock();
+    },
+    { capture: true },
+  );
+document.addEventListener(
+  "keydown",
+  (event) => {
+    if (!event.repeat && ["Tab", "Enter", " "].includes(event.key))
+      planetAudio.unlock();
+  },
+  { capture: true },
+);
 const planets = [
   "Yellow planet",
   "Red planet",
@@ -183,6 +210,8 @@ function updateSettings() {
 function setSound(enabled) {
   soundEnabled = enabled;
   storage.set("sound", enabled ? "on" : "off");
+  planetAudio.setEnabled(enabled);
+  if (enabled) planetAudio.unlock();
   if (!enabled && audio) {
     audioRequest++;
     audio.pause();
@@ -292,6 +321,7 @@ $(".skip-link").addEventListener("click", (event) => {
   $("#main").scrollIntoView({ block: "start" });
 });
 function restartIntro() {
+  planetAudio.stop();
   introAudio.reset();
   audioRequest++;
   audio?.pause();
@@ -378,6 +408,7 @@ sceneImage.addEventListener("error", () => {
 });
 document.addEventListener("visibilitychange", () => {
   introAudio.setHidden(document.hidden);
+  if (document.hidden) planetAudio.stop();
   cleanupRoom.setActive?.(
     !document.hidden && document.body.classList.contains("experiment-open"),
   );
@@ -503,6 +534,7 @@ function addHotspot({ name, icon, x, y, href, action, secret = false }) {
   );
   if (secret) node.classList.add("secret-hotspot");
   $("#scene-hotspots").append(node);
+  return node;
 }
 function updateDiscoveries() {
   $("#secret-map-link").hidden = !discovered.has("signal");
@@ -689,15 +721,42 @@ function renderMuseum() {
     [72, 30],
     [90, 25],
   ];
-  positions.forEach(([x, y], index) =>
-    addHotspot({
+  positions.forEach(([x, y], index) => {
+    let cued = false;
+    function cue() {
+      if (
+        !cued &&
+        soundEnabled &&
+        !document.hidden &&
+        !document.body.classList.contains("experiment-open")
+      )
+        cued = planetAudio.play(index);
+    }
+    const node = addHotspot({
       name: planets[index],
       icon: "◉",
       x,
       y,
-      action: () => openExperiment(index),
-    }),
-  );
+      action: () => {
+        planetAudio.unlock();
+        cue();
+        openExperiment(index);
+      },
+    });
+    node.dataset.planetSound = String(index);
+    node.addEventListener("pointerenter", (event) => {
+      if (event.pointerType !== "touch") cue();
+    });
+    node.addEventListener("pointerleave", () => {
+      cued = false;
+    });
+    node.addEventListener("focus", () => {
+      if (node.matches(":focus-visible")) cue();
+    });
+    node.addEventListener("blur", () => {
+      cued = false;
+    });
+  });
 }
 async function openExperiment(initialPlanet) {
   const version = roomVersion;
@@ -852,6 +911,7 @@ function renderRoute({ focus = true } = {}) {
     enter({ focus });
     return;
   }
+  planetAudio.stop();
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   closeExperiment(false);
   cleanupRoom();

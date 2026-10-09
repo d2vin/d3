@@ -521,6 +521,11 @@ input[type="range"]:focus-visible {
   text-align: center;
   white-space: nowrap;
 }
+.scene-hotspot.is-sounding > .hotspot-icon:first-child {
+  color: var(--mint);
+  border-color: var(--mint);
+  box-shadow: 0 0 18px #92d2be88;
+}
 .scene-hotspot:hover .hotspot-label,
 .scene-hotspot:focus-visible .hotspot-label {
   color: var(--ink);
