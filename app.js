@@ -279,14 +279,20 @@ function updateIntroMotion() {
 function startIntro(enabled = true) {
   if (entered || introAudio.phase !== "gate") return;
   setSound(enabled);
+  // Start audible playback in this gesture, before the visual transition.
   introAudio.start(enabled);
-  $("#intro-gate").hidden = true;
-  $("#entry-art").hidden = false;
-  $("#intro-stars").hidden = false;
-  $("#entry-copy").hidden = false;
-  updateIntroMotion();
-  $("#entry-art").focus({ preventScroll: true });
-  announce("Dimension 3. Click or press Enter again to enter the city.");
+  sceneTransitions.run(
+    () => {
+      $("#intro-gate").hidden = true;
+      $("#entry-art").hidden = false;
+      $("#intro-stars").hidden = false;
+      $("#entry-copy").hidden = false;
+      updateIntroMotion();
+      $("#entry-art").focus({ preventScroll: true });
+      announce("Dimension 3. Click or press Enter again to enter the city.");
+    },
+    { duration: 1000 },
+  );
 }
 function enter({ focus = true } = {}) {
   if (entered) return;
