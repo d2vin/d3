@@ -26,6 +26,16 @@ export function createSceneTransitions({
     root?.style.removeProperty("--scene-fade-duration");
   }
 
+  function cleanup(request) {
+    if (!request.applied || request.cleaned) return;
+    request.cleaned = true;
+    try {
+      Promise.resolve(request.onFinish()).catch(report);
+    } catch (error) {
+      report(error);
+    }
+  }
+
   function stopVisuals(request) {
     request.nativeCallbackEnabled = false;
     try {
@@ -45,6 +55,7 @@ export function createSceneTransitions({
 
   function settle(request) {
     if (request.closed) return;
+    cleanup(request);
     clearMarker(request);
     request.closed = true;
     if (current === request) current = null;
@@ -67,6 +78,9 @@ export function createSceneTransitions({
     if (!request) return Promise.resolve();
     // Invalidate the request before skipTransition can schedule its callback.
     request.closed = true;
+    // Hide a live outgoing layer before cancelling its opacity effect, which
+    // would otherwise briefly restore its normal, fully visible appearance.
+    cleanup(request);
     stopVisuals(request);
     clearMarker(request);
     current = null;
@@ -78,11 +92,47 @@ export function createSceneTransitions({
     const request = current;
     if (!request) return Promise.resolve();
     request.finishing = true;
+    request.nativeCallbackEnabled = false;
+    // Commit now, including when motion is disabled during the outgoing fade.
+    const updated = apply(request);
+    cleanup(request);
     stopVisuals(request);
     clearMarker(request);
-    // Commit now, including when motion is disabled during the outgoing fade.
-    apply(request).then(() => settle(request));
+    updated.then(() => settle(request));
     return request.promise;
+  }
+
+  async function liveFade(request) {
+    request.mode = "live";
+    root?.setAttribute("data-scene-transition", "live");
+    const updated = apply(request);
+    if (typeof request.liveElement.animate !== "function") {
+      cleanup(request);
+      clearMarker(request);
+      updated.then(() => settle(request));
+      return;
+    }
+    await updated;
+    if (!isCurrent(request) || request.finishing) return;
+    try {
+      const animation = request.liveElement.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        {
+          duration: request.duration,
+          easing: "ease-in-out",
+          fill: "forwards",
+        },
+      );
+      request.animations.add(animation);
+      await animation.finished;
+    } catch (error) {
+      if (!isCurrent(request) || request.finishing) return;
+      report(error);
+    }
+    if (!isCurrent(request) || request.finishing) return;
+    cleanup(request);
+    stopVisuals(request);
+    settle(request);
   }
 
   function animateOpacity(request, from, to) {
@@ -130,7 +180,15 @@ export function createSceneTransitions({
     void fallback(request);
   }
 
-  function run(update, { duration = 700, animate = true } = {}) {
+  function run(
+    update,
+    {
+      duration = 700,
+      animate = true,
+      liveElement = null,
+      onFinish = () => {},
+    } = {},
+  ) {
     cancel();
     let resolve;
     const promise = new Promise((done) => {
@@ -138,10 +196,13 @@ export function createSceneTransitions({
     });
     const request = {
       update,
+      liveElement,
+      onFinish,
       duration: Number.isFinite(duration) ? Math.max(0, duration) : 700,
       promise,
       resolve,
       applied: false,
+      cleaned: false,
       updatePromise: Promise.resolve(),
       animations: new Set(),
       native: null,
@@ -159,11 +220,19 @@ export function createSceneTransitions({
     }
     if (!motionAllowed) {
       // Initial hash navigation and reduced motion must render synchronously.
-      apply(request).then(() => settle(request));
+      const updated = apply(request);
+      cleanup(request);
+      updated.then(() => settle(request));
       return promise;
     }
 
     root?.style.setProperty("--scene-fade-duration", `${request.duration}ms`);
+    if (liveElement) {
+      // Keep an outgoing video/canvas running above the new scene; a native
+      // snapshot would freeze it for the duration of the crossfade.
+      void liveFade(request);
+      return promise;
+    }
     if (typeof document?.startViewTransition !== "function") {
       void fallback(request);
       return promise;

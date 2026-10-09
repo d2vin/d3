@@ -208,10 +208,7 @@ function updateSettings() {
   motionButton.setAttribute("aria-pressed", String(!reducedMotion()));
   document.body.dataset.motion = reducedMotion() ? "reduced" : "full";
   cleanupRoom.setReducedMotion?.(reducedMotion());
-  introStars.setActive(
-    !entered && introAudio.phase === "title" && !document.hidden,
-    reducedMotion(),
-  );
+  introStars.setActive(introVisible() && !document.hidden, reducedMotion());
 }
 function setSound(enabled) {
   soundEnabled = enabled;
@@ -241,17 +238,12 @@ motionQuery.addEventListener("change", () => {
 });
 
 // Only a deliberate start gesture begins the title and its audio.
+function introVisible() {
+  return !$("#entry-screen").hidden && !$("#entry-art").hidden;
+}
 function updateIntroMotion() {
-  introStars.setActive(
-    !entered && introAudio.phase === "title" && !document.hidden,
-    reducedMotion(),
-  );
-  if (
-    entered ||
-    introAudio.phase !== "title" ||
-    reducedMotion() ||
-    document.hidden
-  ) {
+  introStars.setActive(introVisible() && !document.hidden, reducedMotion());
+  if (!introVisible() || reducedMotion() || document.hidden) {
     introVideo?.pause();
     if (introVideo) introVideo.hidden = true;
     return;
@@ -267,7 +259,7 @@ function updateIntroMotion() {
     introVideo.hidden = true;
     const video = introVideo;
     video.addEventListener("playing", () => {
-      video.hidden = entered || introAudio.phase !== "title" || reducedMotion();
+      video.hidden = !introVisible() || reducedMotion() || document.hidden;
     });
     video.addEventListener("error", () => {
       video.hidden = true;
@@ -283,7 +275,7 @@ function startIntro(enabled = true) {
   introAudio.start(enabled);
   sceneTransitions.run(
     () => {
-      $("#intro-gate").hidden = true;
+      $("#intro-gate").inert = true;
       $("#entry-art").hidden = false;
       $("#intro-stars").hidden = false;
       $("#entry-copy").hidden = false;
@@ -291,7 +283,14 @@ function startIntro(enabled = true) {
       $("#entry-art").focus({ preventScroll: true });
       announce("Dimension 3. Click or press Enter again to enter the city.");
     },
-    { duration: 1000 },
+    {
+      duration: 1000,
+      liveElement: $("#intro-gate"),
+      onFinish: () => {
+        $("#intro-gate").hidden = true;
+        $("#intro-gate").inert = false;
+      },
+    },
   );
 }
 function enter({ focus = true } = {}) {
@@ -300,9 +299,16 @@ function enter({ focus = true } = {}) {
   // Keep play() in the click/Enter call stack. Direct room links stay silent.
   introAudio.enter();
   entered = true;
-  renderRoute({ focus, animate: fromTitle, duration: 1000 });
+  renderRoute({
+    focus,
+    animate: fromTitle,
+    duration: 1000,
+    liveIntro: fromTitle,
+  });
 }
-function showWorld() {
+function hideIntro() {
+  $("#entry-screen").hidden = true;
+  $("#entry-screen").inert = false;
   introStars.setActive(false, reducedMotion());
   introVideo?.pause();
   if (introVideo) {
@@ -311,7 +317,10 @@ function showWorld() {
     introVideo.remove();
     introVideo = null;
   }
-  $("#entry-screen").hidden = true;
+}
+function showWorld({ keepIntro = false } = {}) {
+  if (keepIntro) $("#entry-screen").inert = true;
+  else hideIntro();
   $("#world").hidden = false;
   $("#replay-intro").hidden = false;
   document.body.classList.add("entered");
@@ -356,9 +365,11 @@ function restartIntro() {
   entered = false;
   document.body.classList.remove("entered");
   $("#entry-screen").hidden = false;
+  $("#entry-screen").inert = false;
   $("#world").hidden = true;
   $("#replay-intro").hidden = true;
   $("#intro-gate").hidden = false;
+  $("#intro-gate").inert = false;
   $("#entry-art").hidden = true;
   $("#intro-stars").hidden = true;
   $("#entry-copy").hidden = true;
@@ -429,10 +440,7 @@ document.addEventListener("visibilitychange", () => {
   cleanupRoom.setActive?.(
     !document.hidden && document.body.classList.contains("experiment-open"),
   );
-  introStars.setActive(
-    !entered && introAudio.phase === "title" && !document.hidden,
-    reducedMotion(),
-  );
+  introStars.setActive(introVisible() && !document.hidden, reducedMotion());
   if (document.hidden) {
     sceneVideo.pause();
     introVideo?.pause();
@@ -923,7 +931,12 @@ function renderObservatory() {
   content.append(panel);
   addDiscoveryPanel();
 }
-function renderRoute({ focus = true, animate = true, duration = 700 } = {}) {
+function renderRoute({
+  focus = true,
+  animate = true,
+  duration = 700,
+  liveIntro = false,
+} = {}) {
   if (!entered) {
     enter({ focus });
     return;
@@ -933,11 +946,16 @@ function renderRoute({ focus = true, animate = true, duration = 700 } = {}) {
   const next = readRoute(location.hash, discovered.has("signal"));
   sceneTransitions.run(
     () => {
-      showWorld();
+      showWorld({ keepIntro: liveIntro });
       commitRoute(next, { focus });
       return waitForScenePoster();
     },
-    { animate, duration },
+    {
+      animate,
+      duration,
+      liveElement: liveIntro ? $("#entry-screen") : null,
+      onFinish: liveIntro ? hideIntro : undefined,
+    },
   );
 }
 function waitForScenePoster() {
