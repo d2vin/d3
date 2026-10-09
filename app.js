@@ -716,8 +716,8 @@ function renderRecords() {
   addHotspot({
     name: "Play the record store session",
     icon: "◎",
-    x: 40,
-    y: 62,
+    x: 81.5,
+    y: 71,
     action: () => togglePlayback(),
   });
   const panel = el("section", "feature-panel record-panel");
