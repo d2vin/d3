@@ -273,40 +273,93 @@
       </div>
       <div id="room-content" class="room-content"></div>
     </dialog>
-    <dialog id="map-dialog" class="dialog" aria-labelledby="map-title">
+    <dialog id="map-dialog" class="dialog atlas" aria-labelledby="map-title" aria-describedby="map-description">
       <div class="dialog-heading">
         <div>
-          <p class="eyebrow">Find your way</p>
-          <h2 id="map-title">A map of D3</h2>
+          <h2 id="map-title">A wanderer’s map</h2>
+          <p id="map-description">Follow a path through D3.</p>
         </div>
         <button class="dialog-close" type="button" aria-label="Close map">
           ×
         </button>
       </div>
-      <p>Every door leads somewhere. Take your time.</p>
       <nav class="map-grid" aria-label="Rooms">
-        <a href="#home"
-          ><span aria-hidden="true">⌂</span><strong>The city</strong
-          ><span>Your starting point</span></a
-        >
-        <a href="#records"
-          ><span aria-hidden="true">◎</span><strong>Record store</strong
-          ><span>Put something on</span></a
-        >
-        <a href="#museum"
-          ><span aria-hidden="true">✳</span><strong>Museum</strong
-          ><span>Make a small discovery</span></a
-        >
-        <a href="#shop"
-          ><span aria-hidden="true">◇</span><strong>Curiosity shop</strong
-          ><span>Objects & their stories</span></a
-        >
-        <a href="#observatory" id="secret-map-link" hidden
-          ><span aria-hidden="true">✦</span><strong>After hours</strong
-          ><span>Your hidden view of the city</span></a
-        >
+        <svg class="atlas-chart" viewBox="0 0 640 410" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <g class="atlas-orbits">
+            <ellipse cx="320" cy="205" rx="281" ry="179"/>
+            <ellipse cx="320" cy="205" rx="269" ry="169"/>
+            <path d="M320 16V38 M320 372V394 M22 205H48 M592 205H618"/>
+            <path d="M87 70L100 82 M540 328L553 340 M87 340L100 328 M540 82L553 70"/>
+          </g>
+          <g class="atlas-trails">
+            <path d="M320 294C316 259 283 246 256 230S198 199 140 171"/>
+            <path d="M320 294C324 259 357 246 384 230S442 199 500 171"/>
+            <path d="M320 294C306 256 333 226 320 192S305 129 320 91"/>
+          </g>
+          <g class="atlas-stars">
+            <path d="M78 107v12m-6-6h12 M557 264v12m-6-6h12 M433 62v10m-5-5h10 M219 328v10m-5-5h10"/>
+            <circle cx="181" cy="86" r="1.5"/><circle cx="227" cy="122" r="1"/>
+            <circle cx="471" cy="109" r="1.5"/><circle cx="406" cy="141" r="1"/>
+            <circle cx="167" cy="281" r="1.5"/><circle cx="499" cy="321" r="1"/>
+            <circle cx="248" cy="257" r="1"/><circle cx="386" cy="277" r="1.5"/>
+          </g>
+        </svg>
+        <div class="atlas-compass" aria-hidden="true">
+          <svg viewBox="0 0 80 80" focusable="false">
+            <circle cx="40" cy="40" r="26"/><circle cx="40" cy="40" r="30" stroke-dasharray="1 6"/>
+            <path d="M40 3L46 34L77 40L46 46L40 77L34 46L3 40L34 34Z"/>
+            <path d="M40 14V66M14 40H66M20 20L60 60M60 20L20 60"/>
+            <circle cx="40" cy="40" r="5"/>
+          </svg>
+        </div>
+        <a href="#home" class="atlas-place atlas-city">
+          <svg class="atlas-landmark" viewBox="0 0 140 90" aria-hidden="true" focusable="false">
+            <circle class="atlas-halo" cx="70" cy="43" r="37"/>
+            <path d="M21 73H119M29 73V45H48V73M48 73V27L59 17L70 27V73M70 73V37H88V73M88 73V19L98 9L108 19V73M59 17V8M98 9V3"/>
+            <path d="M34 52H40M34 61H40M55 32H62M55 43H62M55 54H62M77 46H81M77 58H81M95 25H101M95 37H101M95 49H101M95 60H101M17 79H123"/>
+            <path class="atlas-moon" d="M33 9A12 12 0 1 0 40 29A14 14 0 0 1 33 9Z"/>
+          </svg>
+          <strong>The city</strong><span class="atlas-caption">Where the paths begin</span>
+          <span class="atlas-presence" aria-hidden="true">You are here</span>
+        </a>
+        <a href="#records" class="atlas-place atlas-records">
+          <svg class="atlas-landmark" viewBox="0 0 140 90" aria-hidden="true" focusable="false">
+            <circle class="atlas-halo" cx="70" cy="43" r="37"/>
+            <path d="M23 66L32 38H111L119 66V77H23ZM23 66H119M32 38V15H111V38M38 20H105V33H38Z"/>
+            <ellipse cx="66" cy="53" rx="25" ry="9"/><ellipse cx="66" cy="53" rx="16" ry="5"/><ellipse cx="66" cy="53" rx="4" ry="2"/>
+            <path d="M102 44L91 57H82M99 44H106M29 71H40M103 71H112M38 77V81M104 77V81M48 9V1M44 5H52M121 29V19M117 23H125"/>
+          </svg>
+          <strong>Record store</strong><span class="atlas-caption">Music for the journey</span>
+          <span class="atlas-presence" aria-hidden="true">You are here</span>
+        </a>
+        <a href="#museum" class="atlas-place atlas-museum">
+          <svg class="atlas-landmark" viewBox="0 0 140 90" aria-hidden="true" focusable="false">
+            <circle class="atlas-halo" cx="70" cy="43" r="37"/>
+            <path d="M23 78H117M28 72H112M32 67V39H108V67M28 39L70 21L112 39ZM40 44V63M51 44V63M89 44V63M100 44V63M62 67V51A8 8 0 0 1 78 51V67M27 67H113V72H27Z"/>
+            <circle cx="70" cy="12" r="8"/><ellipse cx="70" cy="12" rx="16" ry="4" transform="rotate(-22 70 12)"/>
+            <path d="M22 20V10M17 15H27M119 52V42M114 47H124"/>
+          </svg>
+          <strong>Museum</strong><span class="atlas-caption">Little worlds await</span>
+          <span class="atlas-presence" aria-hidden="true">You are here</span>
+        </a>
+        <a href="#shop" class="atlas-place atlas-shop">
+          <svg class="atlas-landmark" viewBox="0 0 140 90" aria-hidden="true" focusable="false">
+            <circle class="atlas-halo" cx="70" cy="43" r="37"/>
+            <path d="M31 75V42H109V75M25 42L36 26H104L115 42M25 42Q34 52 43 42Q52 52 61 42Q70 52 79 42Q88 52 97 42Q106 52 115 42M45 26L43 42M58 26L61 42M82 26L79 42M95 26L97 42M60 75V55H81V75M38 55H50V65H38ZM90 55H102V65H90ZM24 78H116"/>
+            <path d="M64 14L70 4L76 14L70 23ZM70 4V23M112 13V3M107 8H117M23 60V52M19 56H27"/>
+          </svg>
+          <strong>Curiosity shop</strong><span class="atlas-caption">Treasures & oddities</span>
+          <span class="atlas-presence" aria-hidden="true">You are here</span>
+        </a>
       </nav>
-      <p class="map-note">Your discoveries stay in this browser.</p>
+      <a href="#observatory" id="secret-map-link" class="atlas-secret" hidden>
+        <span aria-hidden="true">✦</span><span><strong>After hours</strong><small>A hidden path, now yours to wander.</small></span>
+      </a>
+      <div class="atlas-footer">
+        <span aria-hidden="true">✧</span>
+        <p>Choose a landmark. See where it leads.</p>
+        <span aria-hidden="true">✧</span>
+      </div>
       <button
         id="replay-intro"
         class="button button-quiet"

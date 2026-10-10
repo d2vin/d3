@@ -1040,7 +1040,7 @@ function commitRoute(next, { focus }) {
   else if (room === "museum") renderMuseum();
   else if (room === "shop") renderShop();
   else renderObservatory();
-  document.querySelectorAll(".map-grid a").forEach((a) => {
+  document.querySelectorAll("#map-dialog a").forEach((a) => {
     if (a.hash === `#${room}`) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });

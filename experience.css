@@ -961,34 +961,231 @@ dialog::backdrop {
   color: var(--muted);
   font-size: 10px;
 }
-.map-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+/* An engraved night atlas: the landmarks themselves are the navigation. */
+.atlas.dialog {
+  --atlas-gold: #d8bb82;
+  --atlas-paper: #eee4ce;
+  --atlas-muted: #b6ad9a;
+  width: min(760px, calc(100% - 24px));
+  padding: 28px 32px 22px;
+  border: 1px solid #b99b605e;
+  border-radius: 12px;
+  color: var(--atlas-paper);
+  background:
+    radial-gradient(ellipse at 50% 42%, #33415845, transparent 64%),
+    repeating-linear-gradient(0deg, #c2aa7008 0 1px, transparent 1px 4px),
+    linear-gradient(105deg, #171e2b, #101520 48%, #1c2230 50%, #131a27 52%);
+  box-shadow: inset 0 0 0 7px #0d121c, inset 0 0 0 8px #a78c4b33, 0 24px 120px #000b;
 }
-.map-grid a {
+.atlas::backdrop {
+  background: #030711a6;
+  backdrop-filter: blur(5px);
+}
+.atlas .dialog-heading {
+  align-items: center;
+  margin: 0;
+}
+.atlas .dialog-heading h2 {
+  margin: 0;
+  font: 400 clamp(26px, 4vw, 34px)/1.15 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  letter-spacing: -0.03em;
+  color: var(--atlas-paper);
+}
+.atlas #map-description {
+  margin: 8px 0 0;
+  max-width: 34ch;
+  font: italic 14px/1.45 Georgia, serif;
+  color: var(--atlas-muted);
+}
+.atlas .dialog-close {
+  border-radius: 50%;
+  border-color: #c8ab7045;
+  color: var(--atlas-gold);
+  font-family: Georgia, serif;
+}
+.atlas .dialog-close:hover {
+  border-color: var(--atlas-gold);
+  background: #d8bb8212;
+}
+.atlas .map-grid {
+  position: relative;
+  height: 410px;
+  margin: 8px -4px 0;
+}
+.atlas-chart {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--atlas-gold);
+  stroke-width: 1;
+  pointer-events: none;
+}
+.atlas-orbits {
+  opacity: 0.16;
+}
+.atlas-trails {
+  opacity: 0.6;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
+}
+.atlas-stars {
+  opacity: 0.65;
+}
+.atlas-stars circle {
+  fill: var(--atlas-gold);
+}
+.atlas-compass {
+  position: absolute;
+  width: 65px;
+  left: 50%;
+  top: 49%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.atlas-compass svg {
+  fill: #161e2b;
+  stroke: var(--atlas-gold);
+  stroke-width: 0.8;
+  opacity: 0.7;
+}
+.atlas .atlas-place {
+  position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #09091180;
+  align-items: center;
+  width: min(170px, 38%);
+  padding: 5px 2px 7px;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
   text-decoration: none;
+  text-align: center;
+  color: var(--atlas-gold);
+  touch-action: manipulation;
 }
-.map-grid a:hover,
-.map-grid a[aria-current="page"] {
-  border-color: var(--lavender);
-  color: var(--text);
+.atlas-city { left: 50%; top: 80%; }
+.atlas-museum { left: 50%; top: 18%; }
+.atlas-records { left: 19%; top: 45%; }
+.atlas-shop { left: 81%; top: 45%; }
+.atlas-landmark {
+  width: 122px;
+  height: 79px;
+  fill: #151d2b;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  transition: filter 180ms ease, color 180ms ease;
 }
-.map-grid a strong {
-  font-size: 0.95rem;
-  font-weight: 550;
+.atlas-halo {
+  fill: none;
+  opacity: 0.25;
+  stroke-dasharray: 1 5;
 }
-.map-grid a span,
-.map-grid a small {
-  font-size: 0.8rem;
-  color: var(--muted);
+.atlas-moon { fill: #d8bb8226; }
+.atlas-place strong {
+  margin-top: 3px;
+  color: var(--atlas-paper);
+  font: 400 20px/1.2 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+}
+.atlas-caption {
+  margin-top: 5px;
+  color: var(--atlas-muted);
+  font: italic 12px/1.4 Georgia, serif;
+}
+.atlas .atlas-place:hover,
+.atlas .atlas-place:focus-visible,
+.atlas .atlas-place[aria-current="page"] {
+  color: #bce4df;
+}
+.atlas-place:hover .atlas-landmark,
+.atlas-place:focus-visible .atlas-landmark {
+  filter: drop-shadow(0 0 9px #9ad4d66b);
+}
+.atlas-place[aria-current="page"] .atlas-halo {
+  opacity: 0.65;
+  stroke-dasharray: none;
+}
+.atlas-presence {
+  position: absolute;
+  top: calc(100% - 2px);
+  visibility: hidden;
+  color: #bce4df;
+  font: 9px/1.5 var(--mono);
+}
+.atlas-presence::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin: 0 5px 2px 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.atlas-place[aria-current="page"] .atlas-presence {
+  visibility: visible;
+}
+.atlas-secret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  min-height: 60px;
+  margin: 4px 0 18px;
+  padding: 8px;
+  text-align: left;
+  text-decoration: none;
+  color: var(--atlas-gold);
+  border-block: 1px dashed #d8bb8238;
+}
+.atlas-secret > span:first-child { font-size: 26px; }
+.atlas-secret strong { font: 400 19px/1.4 Georgia, serif; }
+.atlas-secret small {
+  display: block;
+  color: var(--atlas-muted);
+  font: italic 12px/1.5 Georgia, serif;
+}
+.atlas-secret:hover,
+.atlas-secret[aria-current="page"] { color: #bce4df; }
+.atlas-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #c8ab7029;
+  color: var(--atlas-gold);
+}
+.atlas-footer p {
+  margin: 0;
+  text-align: center;
+  color: var(--atlas-muted);
+  font: italic 13px/1.5 Georgia, serif;
+}
+.atlas #replay-intro {
+  display: block;
+  margin: 14px auto 0;
+  border-color: #c8ab7045;
+  color: var(--atlas-paper);
+  font-size: 10px;
+}
+@media (max-width: 520px) {
+  .atlas.dialog { padding: 22px 18px 18px; }
+  .atlas .dialog-heading { gap: 8px; }
+  .atlas #map-description { font-size: 12px; max-width: 25ch; }
+  .atlas .map-grid { height: 390px; margin: 12px -6px 0; }
+  .atlas .atlas-place { width: 40%; }
+  .atlas-records { left: 20%; }
+  .atlas-shop { left: 80%; }
+  .atlas-landmark { width: 100px; height: 65px; }
+  .atlas-place strong { font-size: 17px; }
+  .atlas-caption { font-size: 11px; max-width: 13ch; }
+  .atlas-compass { width: 47px; }
+  .atlas-footer { gap: 9px; }
+  .atlas-footer p { font-size: 12px; }
 }
 .map-note {
   margin: 20px 0 0;
@@ -1543,9 +1740,6 @@ input[type="range"]::-moz-range-thumb {
     grid-row: 2;
     align-self: start;
     padding: 0 12px 12px;
-  }
-  .map-grid a {
-    padding: 13px;
   }
   .player-bar {
     display: grid;
