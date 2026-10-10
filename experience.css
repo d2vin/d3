@@ -194,9 +194,6 @@ input[type="range"]:focus-visible {
 .wordmark-name {
   display: none;
 }
-.wordmark > span:not(.wordmark-name) {
-  color: var(--lavender);
-}
 .header-controls {
   display: flex;
   align-items: center;
